@@ -1,4 +1,3 @@
-Kozai-Lidov effect in AMUSE
+Disk stability and Kozai-Lidov effect in AMUSE
 
-
-test
+This repository is for testing if a hydro disk can survive around an S-star binary around sgr A*.
