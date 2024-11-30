@@ -86,13 +86,12 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                           eccentricity=self.outer_eccentricity,
                                           true_anomaly=true_anomaly,
                                           inclination=self.mutual_inclination)
-        com_velocity = (constants.G * self.smbh_mass / self.outer_semimajor_axis).sqrt()  # Assumes eccentricity of zero!
         smbh.name = 'SMBH'
         orbiter.name = 'orbiter'
-        return orbiter, smbh, com_velocity
+        return orbiter, smbh
     
 
-    def _make_binary(self, true_anomaly=0|units.rad, inclination=0|units.rad):
+    def _make_binary_at_orbiter(self, orbiter, true_anomaly=0|units.rad, inclination=0|units.rad):
         primary, secondary = generate_binaries(self.primary_mass, 
                                                self.secondary_mass, 
                                                self.inner_semimajor_axis, 
@@ -100,70 +99,61 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                                true_anomaly=true_anomaly,
                                                inclination=inclination,
                                                argument_of_periapsis=self.inner_arg_of_periapse)
+        primary.position += orbiter.position
+        secondary.position += orbiter.position
+        primary.velocity += orbiter.velocity
+        secondary.velocity += orbiter.velocity
         primary.name = 'primary'
         secondary.name = 'secondary'
         return primary, secondary
     
 
-    def _make_disk(self, R=1|units.AU):
+    def _make_disk_at_orbiter(self, orbiter, R=1|units.AU):
         """R is needed to make Rmin and Rmax dimensionless, @Yannick can add further explanation."""
-        converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)
+        converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)  # This converter is only used here, no need to return it
 
         disk = ProtoPlanetaryDisk(self.n_disk, 
                                   convert_nbody=converter, 
                                   Rmin=self.disk_inner_radius/R, 
                                   Rmax=self.disk_outer_radius/R, 
                                   discfraction=self.disk_mass/self.com_orbiter_mass).result
+        
+        # Move sph particles to correct position
+        disk.position += orbiter.position
+        disk.velocity += orbiter.velocity
         disk.name = 'disk'
-        return disk, converter
-    
+        return disk
 
-    def get_binary_com(self, primary, secondary):
-        return (primary.position*self.primary_mass + secondary.position*self.secondary_mass) / self.com_orbiter_mass
-            
 
     def make_system(self, true_anomaly=0|units.rad, inclination=0|units.rad, R=1|units.AU):
 
         if self.n_orbiters == 1:
 
-            orbiter, smbh, com_velocity = self._make_smbh_and_orbiter(true_anomaly)
+            orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
 
             smbh_and_orbiter = Particles(0)
             smbh_and_orbiter.add_particle(smbh)
             smbh_and_orbiter.add_particle(orbiter)
             smbh_and_orbiter.move_to_center()
 
-            disk, converter = self._make_disk(R)
+            disk = self._make_disk_at_orbiter(R)
 
-            # Move sph particles to correct position
-            com_orbiter = orbiter.position
-            disk.position += com_orbiter
-            disk.velocity += (0,1,0) * com_velocity
-
-            #TODO: rotate disk to correct orientation
-
-            return smbh_and_orbiter, disk, converter
+            return smbh_and_orbiter, disk
             
         elif self.n_orbiters == 2:
 
-            orbiter, smbh, com_velocity = self._make_smbh_and_orbiter(true_anomaly)
-            primary, secondary = self._make_binary(true_anomaly, inclination)
+            orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
+            primary, secondary = self._make_binary_at_orbiter(orbiter, true_anomaly, inclination)
 
-            smbh_and_binary= Particles(0)
+            smbh_and_binary = Particles(0)
             smbh_and_binary.add_particle(smbh)
             smbh_and_binary.add_particle(primary)
             smbh_and_binary.add_particle(secondary)
             smbh_and_binary.move_to_center()
 
-            disk, converter = self._make_disk(R)
+            disk = self._make_disk_at_orbiter(orbiter, R)
 
-            # Move sph particles to correct position
-            disk.position += self.get_binary_com(smbh_and_binary[1], smbh_and_binary[2])
-            disk.velocity += (0,1,0) * com_velocity
-
-            #TODO: rotate disk to correct orientation
-
-            return smbh_and_binary, disk, converter
+            return smbh_and_binary, disk
 
         else:
             sys.exit('If you are seeing this, something broke in initializing this class...')
