@@ -166,6 +166,10 @@ if __name__ == "__main__":
     gravity.stop()
 
 
+    if not os.path.isdir('figures'):
+        os.mkdir('figures')
+
+
     #plot the e and i evolution
     fig, ax1 = plt.subplots(figsize=(20,6))
     ax2 = ax1.twinx()
@@ -180,7 +184,7 @@ if __name__ == "__main__":
 
     ax2.set_ylabel('Inclination [deg]', color='blue')
     ax2.tick_params(axis='y', labelcolor='blue')
-    ax2.set_ylim(0, 180)
+    ax2.set_ylim(0, 180)    
     fig.savefig(f'figures/ecc_inc_{a_disk}_{n_pl}.png')
     # plt.show()
 
