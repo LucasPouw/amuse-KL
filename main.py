@@ -40,7 +40,7 @@ if __name__ == '__main__':
                             Mdisk,
                             n_disk=Ndisk)  # Shai Hulud is the Maker
     
-    smbh_and_binary, disk = ShaiHulud.make_system()
+    smbh_and_binary, disk, converter = ShaiHulud.make_system()
     
     v = smbh_and_binary.velocity
     vdisk = disk.velocity

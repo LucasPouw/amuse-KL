@@ -115,7 +115,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                   Rmax=self.disk_outer_radius/R, 
                                   discfraction=self.disk_mass/self.com_orbiter_mass).result
         disk.name = 'disk'
-        return disk
+        return disk, converter
     
 
     def get_binary_com(self, primary, secondary):
@@ -133,7 +133,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_orbiter.add_particle(orbiter)
             smbh_and_orbiter.move_to_center()
 
-            disk = self._make_disk(R)
+            disk, converter = self._make_disk(R)
 
             # Move sph particles to correct position
             com_orbiter = orbiter.position
@@ -142,7 +142,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
             #TODO: rotate disk to correct orientation
 
-            return smbh_and_orbiter, disk
+            return smbh_and_orbiter, disk, converter
             
         elif self.n_orbiters == 2:
 
@@ -155,7 +155,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_binary.add_particle(secondary)
             smbh_and_binary.move_to_center()
 
-            disk = self._make_disk(R)
+            disk, converter = self._make_disk(R)
 
             # Move sph particles to correct position
             disk.position += self.get_binary_com(smbh_and_binary[1], smbh_and_binary[2])
@@ -163,7 +163,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
             #TODO: rotate disk to correct orientation
 
-            return smbh_and_binary, disk
+            return smbh_and_binary, disk, converter
 
         else:
             sys.exit('If you are seeing this, something broke in initializing this class...')
