@@ -25,13 +25,13 @@ import argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run KL on debris disk')
     parser.add_argument('--n_pl', type=int, default=61, help='Number of planetesimals')
-    parser.add_argument('--total_mass_pl', type=float, default=1.6, help='Total mass of planetesimals in e-6 Msun')
+    parser.add_argument('--total_mass_pl', type=float, default=1.6e-6, help='Total mass of planetesimals in e-6 Msun')
     parser.add_argument('--a_disk', type=float, default=0.4, help='Semi-major axis of planetesimals in AU')
     parser.add_argument('--stepsize', type=float, default=100, help='Stepsize in yr')
     args = parser.parse_args()
 
     n_pl = args.n_pl
-    total_mass_pl = args.total_mass_pl * 1e-6 | units.MSun
+    total_mass_pl = args.total_mass_pl | units.MSun
     a_disk = args.a_disk | units.AU
     stepsize = args.stepsize
 

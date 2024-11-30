@@ -1,6 +1,6 @@
 import sys
 from amuse.units.quantities import ScalarQuantity
-from amuse.units import units, constants
+from amuse.units import units
 from amuse.lab import Particles
 from amuse.ext.orbital_elements import generate_binaries
 from amuse.ext.protodisk import ProtoPlanetaryDisk
@@ -127,6 +127,9 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
     def make_system(self, true_anomaly=0|units.rad, inclination=0|units.rad, R=1|units.AU):
 
+        # Might as well return the converter for the whole system here
+        converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
+
         if self.n_orbiters == 1:
 
             orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
@@ -138,7 +141,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
             disk = self._make_disk_at_orbiter(R)
 
-            return smbh_and_orbiter, disk
+            return smbh_and_orbiter, disk, converter
             
         elif self.n_orbiters == 2:
 
@@ -153,7 +156,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
             disk = self._make_disk_at_orbiter(orbiter, R)
 
-            return smbh_and_binary, disk
+            return smbh_and_binary, disk, converter
 
         else:
             sys.exit('If you are seeing this, something broke in initializing this class...')
