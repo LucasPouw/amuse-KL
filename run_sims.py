@@ -3,6 +3,36 @@ from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
 from amuse.ext.composition_methods import *
 from amuse.units import units
+import matplotlib.pyplot as plt
+import sys
+import os
+import cv2
+import glob
+
+
+def moviemaker(image_folder, video_name, fps):
+
+    print(f'Generating video {video_name} from {image_folder} with {fps} fps.')
+
+    unsorted_images = glob.glob(image_folder + '*.png')
+    image_numbers = [image_name.split('-')[-1].split('.')[0] for image_name in unsorted_images]
+    image_numbers = list(map(int, image_numbers))
+
+    _, sorted_images = zip(*sorted(zip(image_numbers, unsorted_images)))
+
+    frame = cv2.imread(sorted_images[0])
+    # height, width, layers = frame.shape  
+
+    # Unsupported height and width gives errors, using (640, 480) for now, but maybe something else is better, TODO: find this out
+    video = cv2.VideoWriter(video_name, 0, fps, (640,480))
+
+    for image_name in sorted_images:
+        img = cv2.imread(image_name)
+        img = cv2.resize(img, (640,480))
+        video.write(img)
+
+    cv2.destroyAllWindows()
+    video.release()
 
 
 class SimulationRunner():
@@ -106,13 +136,16 @@ class SimulationRunner():
         return gravity, hydro, gravhydro, channel, bodies
 
 
-    def run_gravity_hydro_bridge(self, gamma=1, eps=0.1|units.AU):
+    def run_gravity_hydro_bridge(self, movie_kwargs, gamma=1, eps=0.1|units.AU):
+
+        if not os.path.isdir(movie_kwargs['image_folder']):  # kinda ugly
+            os.mkdir(movie_kwargs['image_folder'])
 
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes(gamma, eps)  # As of yet, "bodies" is not used
 
         gravity_initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
-        dt = 1 | units.yr  # 1.0*Pinner
+        dt = 0.2 | units.yr  # 1.0*Pinner, is this timestep just for saving data? TODO: Make it an arg in main.py as well
         while model_time < self.time_end:
 
             model_time += dt
@@ -127,7 +160,46 @@ class SimulationRunner():
             channel["to_disk"].copy()
             channel["to_binary"].copy()
 
+
+            # Making plot of orbiter + disk
+            orbiter = self.smbh_and_orbiter[(self.smbh_and_orbiter.mass > 0.5 |units.Msun) & (self.smbh_and_orbiter.mass < 10 |units.Msun)]
+            if len(orbiter) == 2:
+                com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
+            elif len(orbiter) == 1:
+                com = orbiter.copy()
+            else:
+                sys.exit(f"There are too many bodies orbiting the smbh: {len(orbiter)}")
+
+            fig, ax = plt.subplots(2, 2, figsize=(10,10))
+            ax[0,0].scatter(orbiter.x.value_in(units.AU), orbiter.y.value_in(units.AU), zorder=100)
+            ax[0,0].scatter(self.disk.x.value_in(units.AU), self.disk.y.value_in(units.AU), s=1)
+            ax[0,0].set_ylim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
+            ax[0,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
+            ax[0,0].set_xlabel('x [AU]')
+            ax[0,0].set_ylabel('y [AU]')
+
+            ax[1,0].scatter(orbiter.x.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
+            ax[1,0].scatter(self.disk.x.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
+            ax[1,0].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            ax[1,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
+            ax[1,0].set_xlabel('x [AU]')
+            ax[1,0].set_ylabel('z [AU]')
+
+            ax[1,1].scatter(orbiter.y.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
+            ax[1,1].scatter(self.disk.y.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
+            ax[1,1].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            ax[1,1].set_xlim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
+            ax[1,1].set_xlabel('y [AU]')
+            ax[1,1].set_ylabel('z [AU]')
+
+            fig.savefig(movie_kwargs['image_folder'] + 'disk-snapshot-' + f'{int(model_time.value_in(units.day))}.png', 
+                        bbox_inches='tight',
+                        dpi=200)
+            plt.close()
+
         gravity.stop()
         hydro.stop()
+
+        moviemaker(**movie_kwargs)
 
     

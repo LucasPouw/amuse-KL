@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--m_smbh', type=float, default=4.297e6, help='SMBH mass in solar masses')
     parser.add_argument('--a_out', type=float, default=44e-3, help='Semimajor axis of the orbit around the SMBH in pc')
     parser.add_argument('--e_out', type=float, default=0.32, help='Eccentricity of the orbit around the SMBH')
-    parser.add_argument('--m_orb', type=list, default=[2.8, 0.73], help='Mass(es) of orbiter(s) around the SMBH in solar masses in order [primary, secondary].')
+    parser.add_argument('--m_orb', type=list, default=[2.8, 0.73], help='Mass(es) of orbiter(s) around the SMBH in solar masses in order [primary, secondary].')  # 2.8, 0.73
     parser.add_argument('--a_in', type=float, default=1.59, help='Semimajor axis of the binary orbit in AU')
     parser.add_argument('--e_in', type=float, default=0.45, help='Eccentricity of the binary orbit')
     parser.add_argument('--i_mut', type=float, default=102.55, help='Mutual inclination of the inner and outer orbits in deg')
@@ -80,24 +80,24 @@ if __name__ == '__main__':
 
     smbh_and_binary, disk, converter = ShaiHulud.make_system()
     
-    v = smbh_and_binary.velocity
-    vdisk = disk.velocity
+    # v = smbh_and_binary.velocity
+    # vdisk = disk.velocity
 
-    plt.figure(figsize=(8,6))
-    plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:], 
-                smbh_and_binary.y.value_in(units.AU)[1:], 
-                c=v.lengths().value_in(units.kms)[1:],
-                s=np.log10(smbh_and_binary[1:].mass.number) + 10)
-    plt.scatter(smbh_and_binary.x.value_in(units.AU)[0],
-                smbh_and_binary.y.value_in(units.AU)[0], 
-                c='black', 
-                s=np.log10(smbh_and_binary[0].mass.number) + 10)
-    plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=vdisk.lengths().value_in(units.kms))
-    plt.xlim(-10000, 10000)
-    plt.ylim(-10000, 10000)
-    plt.colorbar()
-    plt.savefig('test1.png')
-    plt.close()
+    # plt.figure(figsize=(8,6))
+    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:], 
+    #             smbh_and_binary.y.value_in(units.AU)[1:], 
+    #             c=v.lengths().value_in(units.kms)[1:],
+    #             s=np.log10(smbh_and_binary[1:].mass.number) + 10)
+    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[0],
+    #             smbh_and_binary.y.value_in(units.AU)[0], 
+    #             c='black', 
+    #             s=np.log10(smbh_and_binary[0].mass.number) + 10)
+    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=vdisk.lengths().value_in(units.kms))
+    # plt.xlim(-10000, 10000)
+    # plt.ylim(-10000, 10000)
+    # plt.colorbar()
+    # plt.savefig('test1.png')
+    # plt.close()
 
     # plt.figure()
     # plt.scatter(smbh_and_binary.x.value_in(units.AU), smbh_and_binary.z.value_in(units.AU))
@@ -121,13 +121,13 @@ if __name__ == '__main__':
     # plt.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1)
     # plt.show()
 
-    plt.figure(figsize=(8,6))
-    plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
-    plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    # plt.ylim(5300,5500)
-    # plt.xlim(-7300, -7200)
-    plt.colorbar()
-    plt.show()
+    # plt.figure(figsize=(8,6))
+    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
+    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
+    # # plt.ylim(5300,5500)
+    # # plt.xlim(-7300, -7200)
+    # plt.colorbar()
+    # plt.show()
 
 
     runner = SimulationRunner(smbh_and_binary,
@@ -137,15 +137,17 @@ if __name__ == '__main__':
                               gravhydro_timestep,
                               time_end)
     
-    runner.run_gravity_hydro_bridge()
+    image_dir = './images/'
+    movie_kwargs = {'image_folder':image_dir, 'video_name': 'disk-evolution.avi', 'fps': 10}
+    runner.run_gravity_hydro_bridge(movie_kwargs)
 
-    plt.figure(figsize=(8,6))
-    plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
-    plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    # plt.ylim(5300,5500)
-    # plt.xlim(-7300, -7200)
-    plt.colorbar()
-    plt.show()
+    # plt.figure(figsize=(8,6))
+    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
+    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
+    # # plt.ylim(5300,5500)
+    # # plt.xlim(-7300, -7200)
+    # plt.colorbar()
+    # plt.show()
 
     # plt.figure(figsize=(8,6))
     # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.z.value_in(units.AU)[1:2],zorder=100)

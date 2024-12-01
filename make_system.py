@@ -139,7 +139,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_orbiter.add_particle(orbiter)
             smbh_and_orbiter.move_to_center()
 
-            disk = self._make_disk_at_orbiter(R)
+            disk = self._make_disk_at_orbiter(orbiter, R)
 
             return smbh_and_orbiter, disk, converter
             
