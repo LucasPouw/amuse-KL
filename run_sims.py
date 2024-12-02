@@ -63,6 +63,7 @@ class SimulationRunner():
                  converter,
                  hydro_timestep,
                  gravhydro_timestep,
+                 diagnostic_timestep,
                  time_end):
         
         self.smbh_and_orbiter = smbh_and_orbiter
@@ -70,6 +71,7 @@ class SimulationRunner():
         self.converter = converter
         self.hydro_timestep = hydro_timestep
         self.gravhydro_timestep = gravhydro_timestep
+        self.diagnostic_timestep = diagnostic_timestep
         self.time_end = time_end
 
     
@@ -145,10 +147,9 @@ class SimulationRunner():
 
         gravity_initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
-        dt = 0.2 | units.yr  # 1.0*Pinner, is this timestep just for saving data? TODO: Make it an arg in main.py as well
         while model_time < self.time_end:
 
-            model_time += dt
+            model_time += self.diagnostic_timestep
             
             dE_gravity = gravity_initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy()

@@ -43,7 +43,8 @@ if __name__ == '__main__':
     parser.add_argument('--r_max', type=float, default=13.35, help='Outer radius of the hydro disk in AU')
     parser.add_argument('--m_disk', type=float, default=1.6e-6, help='Hydro disk mass in solar masses')
     parser.add_argument('--n_disk', type=int, default=int(1e3), help='Number of sph particles in the hydro disk')
-    parser.add_argument('--t_end', type=float, default=10, help='End time of the simulation in years')
+    parser.add_argument('--dt', type=int, default=1, help='Timestep for saving and plotting diagnostics in years')
+    parser.add_argument('--t_end', type=float, default=5, help='End time of the simulation in years')
     args = parser.parse_args()
 
     smbh_mass = args.m_smbh | units.Msun
@@ -58,6 +59,7 @@ if __name__ == '__main__':
     outer_radius = args.r_max | units.AU
     disk_mass = args.m_disk | units.Msun
     n_sph_particles = args.n_disk
+    diagnostic_timestep = args.dt | units.yr
     time_end = args.t_end | units.yr
 
     binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # This still assumes circular orbits
@@ -135,9 +137,10 @@ if __name__ == '__main__':
                               converter,
                               hydro_timestep,
                               gravhydro_timestep,
+                              diagnostic_timestep,
                               time_end)
     
-    image_dir = './images/'
+    image_dir = './images2/'
     movie_kwargs = {'image_folder':image_dir, 'video_name': 'disk-evolution.avi', 'fps': 10}
     runner.run_gravity_hydro_bridge(movie_kwargs)
 
