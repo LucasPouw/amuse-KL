@@ -133,6 +133,9 @@ if __name__ == '__main__':
     # plt.colorbar()
     # plt.show()
 
+    
+    if not os.path.isdir(args.image_dir):  # kinda ugly
+        os.mkdir(args.image_dir)
 
     if len(os.listdir(args.image_dir)) != 0: 
         print(f'Found existing image(s) in {args.image_dir}, removing them...')

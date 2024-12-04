@@ -14,8 +14,6 @@ def moviemaker(image_folder, video_name, fps):
 
     print(f'Generating video {video_name} from {image_folder} with {fps} fps.')
 
-
-
     unsorted_images = glob.glob(image_folder + '*.png')
     image_numbers = [image_name.split('-')[-1].split('.')[0] for image_name in unsorted_images]
     image_numbers = list(map(int, image_numbers))
@@ -156,7 +154,7 @@ class SimulationRunner():
             dE_gravity = gravity_initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy()
             )
-            print("Time:", model_time.in_(units.yr), "dE=", dE_gravity)  # , dE_hydro
+            print("Time:", model_time.in_(units.yr), "dE=", dE_gravity,end=' ')  # , dE_hydro
 
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
@@ -168,6 +166,8 @@ class SimulationRunner():
             orbiter = self.smbh_and_orbiter[(self.smbh_and_orbiter.mass > 0.5 |units.Msun) & (self.smbh_and_orbiter.mass < 10 |units.Msun)]
             if len(orbiter) == 2:
                 com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
+                pos1,pos2 = orbiter.position.in_(units.AU)
+                print(f'Binary distance = {abs(pos1 - pos2).length().in_(units.AU)} ')
             elif len(orbiter) == 1:
                 com = orbiter.copy()
             else:
@@ -176,25 +176,25 @@ class SimulationRunner():
             fig, ax = plt.subplots(2, 2, figsize=(10,10))
             ax[0,0].scatter(orbiter.x.value_in(units.AU), orbiter.y.value_in(units.AU), zorder=100)
             ax[0,0].scatter(self.disk.x.value_in(units.AU), self.disk.y.value_in(units.AU), s=1)
-            ax[0,0].set_ylim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
-            ax[0,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
+            # ax[0,0].set_ylim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
+            # ax[0,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
             ax[0,0].set_xlabel('x [AU]')
             ax[0,0].set_ylabel('y [AU]')
 
             ax[1,0].scatter(orbiter.x.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
             ax[1,0].scatter(self.disk.x.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
-            ax[1,0].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
-            ax[1,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
+            # ax[1,0].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            # ax[1,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
             ax[1,0].set_xlabel('x [AU]')
             ax[1,0].set_ylabel('z [AU]')
 
             ax[1,1].scatter(orbiter.y.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
             ax[1,1].scatter(self.disk.y.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
-            ax[1,1].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
-            ax[1,1].set_xlim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
+            # ax[1,1].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            # ax[1,1].set_xlim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
             ax[1,1].set_xlabel('y [AU]')
             ax[1,1].set_ylabel('z [AU]')
-
+            plt.tight_layout()
             fig.savefig(movie_kwargs['image_folder'] + 'disk-snapshot-' + f'{int(model_time.value_in(units.day))}.png', 
                         bbox_inches='tight',
                         dpi=200)
