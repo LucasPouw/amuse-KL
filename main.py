@@ -44,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--r_max', type=float, default=13.35, help='Outer radius of the hydro disk in AU')
     parser.add_argument('--m_disk', type=float, default=1.6e-6, help='Hydro disk mass in solar masses')
     parser.add_argument('--n_disk', type=int, default=int(1e3), help='Number of sph particles in the hydro disk')
-    parser.add_argument('--dt', type=int, default=1, help='Timestep for saving and plotting diagnostics in years')
+    parser.add_argument('--dt', type=float, default=1, help='Timestep for saving and plotting diagnostics in years')
     parser.add_argument('--t_end', type=float, default=5, help='End time of the simulation in years')
     parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory of plot for movie making')
     args = parser.parse_args()
