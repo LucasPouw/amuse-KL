@@ -1,6 +1,7 @@
 from amuse.community.fi.interface import Fi
 from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
+from amuse.community.hermite.interface import HermiteGRX
 from amuse.ext.composition_methods import *
 from amuse.units import units
 import matplotlib.pyplot as plt
@@ -83,7 +84,7 @@ class SimulationRunner():
         return gravity
         
 
-    def _initialize_hydro(self, gamma=1, eps=0.1|units.AU):
+    def _initialize_hydro(self, gamma=5/3, eps=0.1|units.AU):
 
         hydro = Fi(self.converter, mode="openmp")
         hydro.parameters.use_hydro_flag = True
@@ -95,8 +96,8 @@ class SimulationRunner():
         hydro.parameters.verbosity = 0
         hydro.parameters.eps_is_h_flag = False  # h_smooth is constant
 
-        hydro.parameters.gas_epsilon = eps
-        hydro.parameters.sph_h_const = eps
+        # hydro.parameters.gas_epsilon = eps
+        # hydro.parameters.sph_h_const = eps
 
         return hydro
 
@@ -147,6 +148,13 @@ class SimulationRunner():
 
         gravity_initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
+        #this prints the initial condition
+        orbiter = self.smbh_and_orbiter[(self.smbh_and_orbiter.mass > 0.5 |units.Msun) & (self.smbh_and_orbiter.mass < 10 |units.Msun)]
+        if len(orbiter) == 2:
+            pos1,pos2 = orbiter.position.in_(units.AU)
+            print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
+        # else:
+            # print(f'I')
         while model_time < self.time_end:
 
             model_time += self.diagnostic_timestep
@@ -154,8 +162,10 @@ class SimulationRunner():
             dE_gravity = gravity_initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy()
             )
-            print("Time:", model_time.in_(units.yr), "dE=", dE_gravity,end=' ')  # , dE_hydro
-
+            if len(orbiter) == 2:
+                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity,end=' ')  # , dE_hydro
+            else:
+                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity)
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
