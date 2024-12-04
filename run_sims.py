@@ -86,17 +86,17 @@ class SimulationRunner():
     def _initialize_hydro(self, gamma=1, eps=0.1|units.AU):
 
         hydro = Fi(self.converter, mode="openmp")
-        hydro.parameters.use_hydro_flag = True
-        hydro.parameters.radiation_flag = False
-        hydro.parameters.gamma = gamma
-        hydro.parameters.isothermal_flag = True
-        hydro.parameters.integrate_entropy_flag = False
+        # hydro.parameters.use_hydro_flag = True
+        # hydro.parameters.radiation_flag = False
+        # hydro.parameters.gamma = gamma
+        # hydro.parameters.isothermal_flag = True
+        # hydro.parameters.integrate_entropy_flag = False
         hydro.parameters.timestep = self.hydro_timestep  # 0.01 * binary_period
-        hydro.parameters.verbosity = 0
-        hydro.parameters.eps_is_h_flag = False  # h_smooth is constant
+        # hydro.parameters.verbosity = 0
+        # hydro.parameters.eps_is_h_flag = False  # h_smooth is constant
 
-        hydro.parameters.gas_epsilon = eps
-        hydro.parameters.sph_h_const = eps
+        # hydro.parameters.gas_epsilon = eps
+        # hydro.parameters.sph_h_const = eps
 
         return hydro
 
@@ -175,21 +175,24 @@ class SimulationRunner():
 
             fig, ax = plt.subplots(2, 2, figsize=(10,10))
             ax[0,0].scatter(orbiter.x.value_in(units.AU), orbiter.y.value_in(units.AU), zorder=100)
-            ax[0,0].scatter(self.disk.x.value_in(units.AU), self.disk.y.value_in(units.AU), s=1)
+            if len(self.disk) > 0:
+                ax[0,0].scatter(self.disk.x.value_in(units.AU), self.disk.y.value_in(units.AU), s=1)
             # ax[0,0].set_ylim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
             # ax[0,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
             ax[0,0].set_xlabel('x [AU]')
             ax[0,0].set_ylabel('y [AU]')
 
             ax[1,0].scatter(orbiter.x.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
-            ax[1,0].scatter(self.disk.x.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
+            if len(self.disk) > 0:
+                ax[1,0].scatter(self.disk.x.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
             # ax[1,0].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
             # ax[1,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
             ax[1,0].set_xlabel('x [AU]')
             ax[1,0].set_ylabel('z [AU]')
 
             ax[1,1].scatter(orbiter.y.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
-            ax[1,1].scatter(self.disk.y.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
+            if len(self.disk) > 0:
+                ax[1,1].scatter(self.disk.y.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
             # ax[1,1].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
             # ax[1,1].set_xlim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
             ax[1,1].set_xlabel('y [AU]')

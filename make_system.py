@@ -122,6 +122,13 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
         disk.position += orbiter.position
         disk.velocity += orbiter.velocity
         disk.name = 'disk'
+        # import matplotlib.pyplot as plt
+
+        # plt.figure()
+        # plt.hist(disk.vx.value_in(units.kms), bins=100, histtype='step')
+        # plt.hist(disk.vy.value_in(units.kms), bins=100, histtype='step')
+        # plt.hist(disk.vz.value_in(units.kms), bins=100, histtype='step')
+        # plt.show()
         return disk
 
 
