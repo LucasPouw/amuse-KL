@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from amuse.units import units
 import argparse
+import glob
 
 
 Rmin_stable = 6.55 |units.AU  # minimum stable radius from MA criterion (TODO: change to couple with stable_radii.ipynb)
@@ -45,6 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_disk', type=int, default=int(1e3), help='Number of sph particles in the hydro disk')
     parser.add_argument('--dt', type=int, default=1, help='Timestep for saving and plotting diagnostics in years')
     parser.add_argument('--t_end', type=float, default=5, help='End time of the simulation in years')
+    parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory of plot for movie making')
     args = parser.parse_args()
 
     smbh_mass = args.m_smbh | units.Msun
@@ -132,6 +134,12 @@ if __name__ == '__main__':
     # plt.show()
 
 
+    if len(os.listdir(args.image_dir)) != 0: 
+        print(f'Found existing image(s) in {args.image_dir}, removing them...')
+        files = glob.glob(args.image_dir+'/*.png')
+        for f in files:
+            os.remove(f)
+
     runner = SimulationRunner(smbh_and_binary,
                               disk,
                               converter,
@@ -140,8 +148,8 @@ if __name__ == '__main__':
                               diagnostic_timestep,
                               time_end)
     
-    image_dir = './images2/'
-    movie_kwargs = {'image_folder':image_dir, 'video_name': 'disk-evolution.avi', 'fps': 10}
+
+    movie_kwargs = {'image_folder':args.image_dir, 'video_name': 'disk-evolution.avi', 'fps': 10}
     runner.run_gravity_hydro_bridge(movie_kwargs)
 
     # plt.figure(figsize=(8,6))

@@ -14,6 +14,8 @@ def moviemaker(image_folder, video_name, fps):
 
     print(f'Generating video {video_name} from {image_folder} with {fps} fps.')
 
+
+
     unsorted_images = glob.glob(image_folder + '*.png')
     image_numbers = [image_name.split('-')[-1].split('.')[0] for image_name in unsorted_images]
     image_numbers = list(map(int, image_numbers))
