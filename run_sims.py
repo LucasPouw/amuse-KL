@@ -1,7 +1,7 @@
 from amuse.community.fi.interface import Fi
 from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
-from amuse.community.hermite.interface import HermiteGRX
+# from amuse.community.hermite.interface import HermiteGRX
 from amuse.ext.composition_methods import *
 from amuse.units import units
 import matplotlib.pyplot as plt
@@ -24,12 +24,11 @@ def moviemaker(image_folder, video_name, fps):
     frame = cv2.imread(sorted_images[0])
     # height, width, layers = frame.shape  
 
-    # Unsupported height and width gives errors, using (640, 480) for now, but maybe something else is better, TODO: find this out
-    video = cv2.VideoWriter(video_name, 0, fps, (640,480))
+    video = cv2.VideoWriter(video_name, 0, fps, (1440,1080))
 
     for image_name in sorted_images:
         img = cv2.imread(image_name)
-        img = cv2.resize(img, (640,480))
+        img = cv2.resize(img, (1440,1080))
         video.write(img)
 
     cv2.destroyAllWindows()
@@ -84,20 +83,12 @@ class SimulationRunner():
         return gravity
         
 
-    def _initialize_hydro(self, gamma=5/3, eps=0.1|units.AU):
+    def _initialize_hydro(self):
 
         hydro = Fi(self.converter, mode="openmp")
         hydro.parameters.use_hydro_flag = True
         hydro.parameters.radiation_flag = False
-        hydro.parameters.gamma = gamma
-        hydro.parameters.isothermal_flag = True
-        hydro.parameters.integrate_entropy_flag = False
         hydro.parameters.timestep = self.hydro_timestep  # 0.01 * binary_period
-        hydro.parameters.verbosity = 0
-        hydro.parameters.eps_is_h_flag = False  # h_smooth is constant
-
-        # hydro.parameters.gas_epsilon = eps
-        # hydro.parameters.sph_h_const = eps
 
         return hydro
 
@@ -112,25 +103,21 @@ class SimulationRunner():
         return gravhydro
 
 
-    def _initialize_codes(self, gamma=1, eps=0.1|units.AU):
+    def _initialize_codes(self):
         
         bodies = self.smbh_and_orbiter
-        orbiter = self.smbh_and_orbiter[1:]  # Can be either 1 or 2 stars
 
         gravity = self._initialize_gravity()
-        gravity.particles.add_particles(bodies - orbiter)  # Because for some reason the example does this
+        gravity.particles.add_particles(bodies)
 
         channel = {"from stars": bodies.new_channel_to(gravity.particles),
                     "to_stars": gravity.particles.new_channel_to(bodies)}
         
-        hydro = self._initialize_hydro(gamma, eps)
+        hydro = self._initialize_hydro()
         hydro.particles.add_particles(self.disk)
-        hydro.dm_particles.add_particles(orbiter)
 
         channel.update({"from_disk": self.disk.new_channel_to(hydro.particles)})
         channel.update({"to_disk": hydro.particles.new_channel_to(self.disk)})
-        channel.update({"from_binary": orbiter.new_channel_to(hydro.dm_particles)})
-        channel.update({"to_binary": hydro.dm_particles.new_channel_to(orbiter)})
 
         bodies.add_particles(self.disk)
 
@@ -139,12 +126,12 @@ class SimulationRunner():
         return gravity, hydro, gravhydro, channel, bodies
 
 
-    def run_gravity_hydro_bridge(self, movie_kwargs, gamma=1, eps=0.1|units.AU):
+    def run_gravity_hydro_bridge(self, movie_kwargs):
 
         if not os.path.isdir(movie_kwargs['image_folder']):  # kinda ugly
             os.mkdir(movie_kwargs['image_folder'])
 
-        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes(gamma, eps)  # As of yet, "bodies" is not used
+        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  # As of yet, "bodies" is not used
 
         gravity_initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
@@ -163,13 +150,15 @@ class SimulationRunner():
                 gravity.get_total_energy() + hydro.get_total_energy()
             )
             if len(orbiter) == 2:
-                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity,end=' ')  # , dE_hydro
+                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1, end=' ')  # , dE_hydro
+                print(f'\nGRAVITY TIMESTEP: {gravity.get_timestep().value_in(units.s)} s,\
+GRAVITY TIMESTEP PARAMETER: {gravity.get_timestep_parameter()}\n')
             else:
-                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity)
+                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
+            
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
-            channel["to_binary"].copy()
 
 
             # Making plot of orbiter + disk

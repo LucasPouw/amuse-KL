@@ -40,12 +40,12 @@ if __name__ == '__main__':
     parser.add_argument('--e_in', type=float, default=0.45, help='Eccentricity of the binary orbit')
     parser.add_argument('--i_mut', type=float, default=102.55, help='Mutual inclination of the inner and outer orbits in deg')
     parser.add_argument('--peri', type=float, default=311.75, help='Argument of periapse of the inner orbit in deg')
-    parser.add_argument('--r_min', type=float, default=6.55, help='Inner radius of the hydro disk in AU')
+    parser.add_argument('--r_min', type=float, default=10, help='Inner radius of the hydro disk in AU')
     parser.add_argument('--r_max', type=float, default=13.35, help='Outer radius of the hydro disk in AU')
     parser.add_argument('--m_disk', type=float, default=1.6e-6, help='Hydro disk mass in solar masses')
     parser.add_argument('--n_disk', type=int, default=int(1e3), help='Number of sph particles in the hydro disk')
     parser.add_argument('--dt', type=float, default=1, help='Timestep for saving and plotting diagnostics in years')
-    parser.add_argument('--t_end', type=float, default=5, help='End time of the simulation in years')
+    parser.add_argument('--t_end', type=float, default=15, help='End time of the simulation in years')
     parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory of plot for movie making')
     args = parser.parse_args()
 
@@ -67,6 +67,7 @@ if __name__ == '__main__':
     binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # This still assumes circular orbits
     hydro_timestep = 0.01 * binary_period     # Still fiducial value
     gravhydro_timestep = 0.1 * binary_period  # Same
+    print(f'HYDRO TIMESTEP: {hydro_timestep.value_in(units.s)} s, GRAVHYDRO TIMESTEP: {gravhydro_timestep.value_in(units.s)} s')
     
     
     ShaiHulud = SystemMaker(smbh_mass,
@@ -152,7 +153,7 @@ if __name__ == '__main__':
                               time_end)
     
 
-    movie_kwargs = {'image_folder':args.image_dir, 'video_name': 'disk-evolution.avi', 'fps': 10}
+    movie_kwargs = {'image_folder':args.image_dir, 'video_name': 'disk-evolution-pleasework2.avi', 'fps': 10}
     runner.run_gravity_hydro_bridge(movie_kwargs)
 
     # plt.figure(figsize=(8,6))
