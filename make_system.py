@@ -31,6 +31,7 @@ class SystemMaker:
     disk_mass
     n_orbiters (int): Number of masses orbiting the smbh
     n_disk (int): Number of sph particles in the hydro disk
+    no_disk (bool): If True, no disk will be created, other disk/hydro parameters are ignored.
 
     Methods
     ------------
@@ -109,7 +110,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
     
 
     def _make_disk_at_orbiter(self, orbiter, R=1|units.AU):
-        """R is needed to make Rmin and Rmax dimensionless, @Yannick can add further explanation."""
+        """R is needed to make Rmin and Rmax dimensionless, Sets the scale of the disk, should not be changed."""
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)  # This converter is only used here, no need to return it
 
         disk = ProtoPlanetaryDisk(self.n_disk, 
@@ -138,10 +139,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_orbiter.add_particle(smbh)
             smbh_and_orbiter.add_particle(orbiter)
             smbh_and_orbiter.move_to_center()
-            if self.disk_mass > 0|units.MSun:
-                disk = self._make_disk_at_orbiter(orbiter, R)
-            else:
-                disk = Particles(0)
+            disk = self._make_disk_at_orbiter(orbiter, R)
 
             return smbh_and_orbiter, disk, converter
             
@@ -155,13 +153,37 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_binary.add_particle(primary)
             smbh_and_binary.add_particle(secondary)
             smbh_and_binary.move_to_center()
-
-            if self.disk_mass > 0|units.MSun:
-                disk = self._make_disk_at_orbiter(orbiter, R)
-            else:
-                disk = Particles(0)
+            disk = self._make_disk_at_orbiter(orbiter, R)
 
             return smbh_and_binary, disk, converter
 
         else:
             sys.exit('If you are seeing this, something broke in initializing this class...')
+
+    def make_system_no_disk(self, true_anomaly=0|units.rad, inclination=0|units.rad):
+
+        converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
+
+        if self.n_orbiters == 1:
+
+            orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
+
+            smbh_and_orbiter = Particles(0)
+            smbh_and_orbiter.add_particle(smbh)
+            smbh_and_orbiter.add_particle(orbiter)
+            smbh_and_orbiter.move_to_center()
+
+            return smbh_and_orbiter, converter
+            
+        elif self.n_orbiters == 2:
+
+            orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
+            primary, secondary = self._make_binary_at_orbiter(orbiter, true_anomaly, inclination)
+
+            smbh_and_binary = Particles(0)
+            smbh_and_binary.add_particle(smbh)
+            smbh_and_binary.add_particle(primary)
+            smbh_and_binary.add_particle(secondary)
+            smbh_and_binary.move_to_center()
+
+            return smbh_and_binary, converter

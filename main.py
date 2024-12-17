@@ -47,6 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--dt', type=float, default=1, help='Timestep for saving and plotting diagnostics in years')
     parser.add_argument('--t_end', type=float, default=15, help='End time of the simulation in years')
     parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory of plot for movie making')
+    parser.add_argument('--no_disk', type=bool, default=False, help='If True, no disk will be created. Simulation will be run using pure gravity.')
     args = parser.parse_args()
 
     smbh_mass = args.m_smbh | units.Msun
@@ -63,6 +64,7 @@ if __name__ == '__main__':
     n_sph_particles = args.n_disk
     diagnostic_timestep = args.dt | units.yr
     time_end = args.t_end | units.yr
+    no_disk = args.no_disk
 
     binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # This still assumes circular orbits
     hydro_timestep = 0.01 * binary_period     # Still fiducial value
@@ -83,57 +85,10 @@ if __name__ == '__main__':
                             disk_mass,
                             n_sph_particles)  # Shai Hulud is the Maker
 
-    smbh_and_binary, disk, converter = ShaiHulud.make_system()
-    
-    # v = smbh_and_binary.velocity
-    # vdisk = disk.velocity
-
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:], 
-    #             smbh_and_binary.y.value_in(units.AU)[1:], 
-    #             c=v.lengths().value_in(units.kms)[1:],
-    #             s=np.log10(smbh_and_binary[1:].mass.number) + 10)
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[0],
-    #             smbh_and_binary.y.value_in(units.AU)[0], 
-    #             c='black', 
-    #             s=np.log10(smbh_and_binary[0].mass.number) + 10)
-    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=vdisk.lengths().value_in(units.kms))
-    # plt.xlim(-10000, 10000)
-    # plt.ylim(-10000, 10000)
-    # plt.colorbar()
-    # plt.savefig('test1.png')
-    # plt.close()
-
-    # plt.figure()
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU), smbh_and_binary.z.value_in(units.AU))
-    # plt.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1)
-    # plt.xlim(-10000, 10000)
-    # plt.ylim(-10000, 10000)
-    # plt.savefig('test2.png')
-    # plt.close() 
-
-
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
-    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    # # plt.ylim(5300,5500)
-    # # plt.xlim(-7300, -7200)
-    # plt.colorbar()
-    # plt.show()
-
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.z.value_in(units.AU)[1:2],zorder=100)
-    # plt.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1)
-    # plt.show()
-
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
-    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    # # plt.ylim(5300,5500)
-    # # plt.xlim(-7300, -7200)
-    # plt.colorbar()
-    # plt.show()
-
+    if no_disk:
+        smbh_and_binary, converter = ShaiHulud.make_system(no_disk=True)
+    else:
+        smbh_and_binary, disk, converter = ShaiHulud.make_system()
     
     if not os.path.isdir(args.image_dir):  # kinda ugly
         os.mkdir(args.image_dir)
@@ -150,21 +105,13 @@ if __name__ == '__main__':
                               hydro_timestep,
                               gravhydro_timestep,
                               diagnostic_timestep,
-                              time_end)
+                              time_end,
+                              no_disk)
     
 
     movie_kwargs = {'image_folder':args.image_dir, 'video_name': 'disk-evolution-pleasework2.avi', 'fps': 10}
-    runner.run_gravity_hydro_bridge(movie_kwargs)
 
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.y.value_in(units.AU)[1:2],zorder=100)
-    # plt.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    # # plt.ylim(5300,5500)
-    # # plt.xlim(-7300, -7200)
-    # plt.colorbar()
-    # plt.show()
-
-    # plt.figure(figsize=(8,6))
-    # plt.scatter(smbh_and_binary.x.value_in(units.AU)[1:2], smbh_and_binary.z.value_in(units.AU)[1:2],zorder=100)
-    # plt.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1)
-    # plt.show()
+    if no_disk:
+        runner.run_gravity_no_disk() #TODO: create this method in run_sims.py
+    else:
+        runner.run_gravity_hydro_bridge(movie_kwargs)
