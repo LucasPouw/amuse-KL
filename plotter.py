@@ -127,7 +127,7 @@ def plot_binary_with_arrow(particle_set):
     smbh = particle_set[particle_set.name == 'SMBH']
     
     arrow_to_smbh = smbh.position 
-    arrow_to_smbh = (arrow_to_smbh / arrow_to_smbh.length())[0] * 0.1 #normalize arrow to length 1
+    arrow_to_smbh = (arrow_to_smbh / arrow_to_smbh.length())[0] #normalize arrow to length 1
 
     fig, ax = plt.subplots(2, 2, figsize=(10,10))
 
@@ -158,23 +158,29 @@ def plot_binary_with_arrow(particle_set):
     for i,axis in enumerate(ax.flatten()):
         if i == 1:
             continue
-
+        ymin,ymax = axis.get_ylim()
+        yrange = ymax - ymin
+        print(yrange)
         # com_plot = data_to_axis(com.value_in(units.AU)[slice_dict[i]]) #get the relevant com coordinates
-        com_plot = (0.5,0.5)
-        arrowhead = arrow_to_smbh[slice_dict[i]] #* (0.1 * yrange)
+        com_plot = (0,0)
+
+        #This sets the scale of the arrowhead, and it is now directly depedent on the yscale of the axis
+        #which may mess up in the future so if it does, look here
+        if i != 0:
+            arrowhead = arrow_to_smbh[slice_dict[i]] * 0.25 * yrange
+        else:
+            arrowhead = arrow_to_smbh[slice_dict[i]] * 0.5 * yrange
+
 
         axis.annotate("", xy=arrowhead, xytext=com_plot,
-                    arrowprops=dict(arrowstyle="->"),xycoords='axes fraction',textcoords='axes fraction',
+                    arrowprops=dict(arrowstyle="->"),xycoords='data',textcoords='data',
                     )
         
-        
-        data_to_axis = axis.transLimits.transform
-        axis_to_data = axis.transLimits.inverted().transform
+        ##Uncomment if you want to plot the com and arrowhead as seperate scatters
+        # axis_to_data = axis.transLimits.inverted().transform
+        # print(axis_to_data(com_plot))
+        # print(axis_to_data((0.5,0.5)))
 
-        print(axis_to_data(com_plot))
-        print(axis_to_data((0.5,0.5)))
-        # axis.scatter(*axis_to_data(com_plot),marker='x',zorder=200)
-        # axis.scatter(*axis_to_data(arrowhead),marker='^',zorder=200)
         
 
 
