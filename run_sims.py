@@ -4,6 +4,7 @@ from amuse.community.huayno.interface import Huayno
 # from amuse.community.hermite.interface import HermiteGRX
 from amuse.ext.composition_methods import *
 from amuse.units import units
+from amuse.io import write_set_to_file
 import matplotlib.pyplot as plt
 import sys
 import os
@@ -68,7 +69,8 @@ class SimulationRunner():
                  hydro_timestep,
                  gravhydro_timestep,
                  diagnostic_timestep,
-                 time_end):
+                 time_end,
+                 no_disk=False) -> None:
         
         self.smbh_and_orbiter = smbh_and_orbiter
         self.disk = disk
@@ -150,12 +152,11 @@ class SimulationRunner():
 
         #extract orbiter which is the binary (or the single star)
         orbiter = bodies[np.logical_or((bodies.name == 'primary_star'),(bodies.name == 'secondary_star'))]
-        smbh = bodies[(bodies.name == 'SMBH')] #extract BH
        
         #this prints the initial binary distance
-        if len(orbiter) == 2:
-            pos1, pos2 = orbiter.position.in_(units.AU)
-            print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
+        # if len(orbiter) == 2:
+        #     pos1, pos2 = orbiter.position.in_(units.AU)
+        #     print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
 
         #Run simulation to end
         while model_time < self.time_end:
@@ -167,30 +168,13 @@ class SimulationRunner():
             )
 
             #Print some diagnostics
-            if len(orbiter) == 2:
-                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1, end=' ')  # , dE_hydro
-                print(f'\nGRAVITY TIMESTEP: {gravity.get_timestep().value_in(units.s)} s,\
-                        GRAVITY TIMESTEP PARAMETER: {gravity.get_timestep_parameter()}\n')
-            else:
-                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
+            print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
             
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
-            # Making plot of orbiter + disk
-            #extract orbiter which is the binary (or the single star)
-            orbiter = bodies[np.logical_or((bodies.name == 'primary_star'),(bodies.name == 'secondary_star'))]
-            smbh = bodies[(bodies.name == 'SMBH')] #extract BH
-            com = self.get_com(orbiter) #is a position vector
-
-
- 
-            if len(orbiter) == 2:
-                pos1,pos2 = orbiter.position.in_(units.AU)
-                print(f'Binary distance = {abs(pos1 - pos2).length().in_(units.AU)} ')
-            elif len(orbiter) > 2:
-                sys.exit(f"There are too many bodies orbiting the smbh: {len(orbiter)}")
+            write_set_to_file(bodies, movie_kwargs['image_folder']+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')# TODO: change folder
 
 
         gravity.stop()
