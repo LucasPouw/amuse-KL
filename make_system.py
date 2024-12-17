@@ -87,7 +87,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                           true_anomaly=true_anomaly,
                                           inclination=self.mutual_inclination)
         smbh.name = 'SMBH'
-        orbiter.name = 'orbiter'
+        orbiter.name = 'primary_star'
         return orbiter, smbh
     
 
@@ -103,8 +103,8 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
         secondary.position += orbiter.position
         primary.velocity += orbiter.velocity
         secondary.velocity += orbiter.velocity
-        primary.name = 'primary'
-        secondary.name = 'secondary'
+        primary.name = 'primary_star'
+        secondary.name = 'secondary_star'
         return primary, secondary
     
 

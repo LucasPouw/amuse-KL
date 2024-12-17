@@ -105,7 +105,7 @@ class SimulationRunner():
 
     def _initialize_codes(self):
         
-        bodies = self.smbh_and_orbiter
+        bodies = self.smbh_and_orbiter.copy()
 
         gravity = self._initialize_gravity()
         gravity.particles.add_particles(bodies)
@@ -131,28 +131,35 @@ class SimulationRunner():
         if not os.path.isdir(movie_kwargs['image_folder']):  # kinda ugly
             os.mkdir(movie_kwargs['image_folder'])
 
-        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  # As of yet, "bodies" is not used
+        # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
+        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
 
-        gravity_initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
+        initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
-        #this prints the initial condition
-        orbiter = self.smbh_and_orbiter[(self.smbh_and_orbiter.mass > 0.5 |units.Msun) & (self.smbh_and_orbiter.mass < 10 |units.Msun)]
+
+        #extract orbiter which is the binary (or the single star)
+        orbiter = bodies[(bodies.name == 'primary') or (bodies.name == 'secondary')]
+        smbh = bodies[(bodies.name == 'SMBH')] #extract BH
+       
+        #this prints the initial binary distance
         if len(orbiter) == 2:
             pos1,pos2 = orbiter.position.in_(units.AU)
             print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
-        # else:
-            # print(f'I')
+
+        #Run simulation to end
         while model_time < self.time_end:
 
             model_time += self.diagnostic_timestep
             
-            dE_gravity = gravity_initial_total_energy / (
+            dE_gravity = initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy()
             )
+
+            #Print some diagnostics
             if len(orbiter) == 2:
                 print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1, end=' ')  # , dE_hydro
                 print(f'\nGRAVITY TIMESTEP: {gravity.get_timestep().value_in(units.s)} s,\
-GRAVITY TIMESTEP PARAMETER: {gravity.get_timestep_parameter()}\n')
+                        GRAVITY TIMESTEP PARAMETER: {gravity.get_timestep_parameter()}\n')
             else:
                 print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
             
@@ -160,9 +167,8 @@ GRAVITY TIMESTEP PARAMETER: {gravity.get_timestep_parameter()}\n')
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
-
             # Making plot of orbiter + disk
-            orbiter = self.smbh_and_orbiter[(self.smbh_and_orbiter.mass > 0.5 |units.Msun) & (self.smbh_and_orbiter.mass < 10 |units.Msun)]
+            orbiter = bodies[(bodies.mass > 0.5 |units.Msun) & (bodies.mass < 10 |units.Msun)]
             if len(orbiter) == 2:
                 com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
                 pos1,pos2 = orbiter.position.in_(units.AU)
