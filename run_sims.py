@@ -5,39 +5,6 @@ from amuse.community.huayno.interface import Huayno
 from amuse.ext.composition_methods import *
 from amuse.units import units
 from amuse.io import write_set_to_file
-import matplotlib.pyplot as plt
-import sys
-import os
-import cv2
-import glob
-import numpy as np
-
-from matplotlib.patches import ConnectionPatch
-
-
-
-def moviemaker(image_folder, video_name, fps):
-
-    print(f'Generating video {video_name} from {image_folder} with {fps} fps.')
-
-    unsorted_images = glob.glob(image_folder + '*.png')
-    image_numbers = [image_name.split('-')[-1].split('.')[0] for image_name in unsorted_images]
-    image_numbers = list(map(int, image_numbers))
-
-    _, sorted_images = zip(*sorted(zip(image_numbers, unsorted_images)))
-
-    frame = cv2.imread(sorted_images[0])
-    # height, width, layers = frame.shape  
-
-    video = cv2.VideoWriter(video_name, 0, fps, (1440,1080))
-
-    for image_name in sorted_images:
-        img = cv2.imread(image_name)
-        img = cv2.resize(img, (1440,1080))
-        video.write(img)
-
-    cv2.destroyAllWindows()
-    video.release()
 
 
 class SimulationRunner():
@@ -130,6 +97,7 @@ class SimulationRunner():
         gravhydro = self._initialize_bridge(gravity, hydro)
 
         return gravity, hydro, gravhydro, channel, bodies
+    
 
     @staticmethod
     def get_com(orbiter):
@@ -138,6 +106,7 @@ class SimulationRunner():
         else: #single body
             com = orbiter.copy().position
         return com
+    
 
     def run_gravity_hydro_bridge(self, save_folder):
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
@@ -169,9 +138,9 @@ class SimulationRunner():
 
             write_set_to_file(bodies, save_folder+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
-
         gravity.stop()
         hydro.stop()
+
 
     def run_gravity_no_disk(self, save_folder):
         gravity = self._initialize_gravity()
@@ -190,4 +159,4 @@ class SimulationRunner():
 
             gravity.evolve_model(model_time)
 
-            write_set_to_file(gravity.particles, save_folder+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            write_set_to_file(gravity.particles, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')

@@ -4,8 +4,9 @@ import sys
 import glob
 import argparse
 
+
 def moviemaker(image_folder, video_name, fps=10, height=1080, width=1440):
-    #check if image folder is a folder
+
     if not os.path.isdir(image_folder):
         sys.exit(f'{image_folder} is not a folder. Quitting.')
 
@@ -16,15 +17,16 @@ def moviemaker(image_folder, video_name, fps=10, height=1080, width=1440):
     image_numbers = list(map(int, image_numbers))
     _, sorted_images = zip(*sorted(zip(image_numbers, unsorted_images)))
 
-    video = cv2.VideoWriter(video_name, 0, fps, (width,height))
+    video = cv2.VideoWriter(video_name, 0, fps, (width, height))
 
     for image_name in sorted_images:
         img = cv2.imread(image_name)
-        img = cv2.resize(img, (width,height))
+        img = cv2.resize(img, (width, height))
         video.write(img)
 
     cv2.destroyAllWindows()
     video.release()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make a video from a folder of images.')

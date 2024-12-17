@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_disk', type=int, default=int(1e3), help='Number of sph particles in the hydro disk')
     parser.add_argument('--dt', type=float, default=1, help='Timestep for saving and plotting diagnostics in years')
     parser.add_argument('--t_end', type=float, default=15, help='End time of the simulation in years')
-    parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory of plot for movie making')
+    parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory for AMUSE snapshots in hdf5 format')
     parser.add_argument('--no_disk', type=bool, default=False, help='If True, no disk will be created. Simulation will be run using pure gravity.')
     args = parser.parse_args()
 
@@ -86,16 +86,19 @@ if __name__ == '__main__':
                             n_sph_particles)  # Shai Hulud is the Maker
 
     if no_disk:
-        smbh_and_binary, converter = ShaiHulud.make_system(no_disk=True)
+        print('Initializing system WITHOUT disk...')
+        smbh_and_binary, converter = ShaiHulud.make_system_no_disk()
+        disk = None  # Variable needs to be defined to avoid error in initializing SimulationRunner
     else:
+        print('Initializing system WITH disk...')
         smbh_and_binary, disk, converter = ShaiHulud.make_system()
     
-    if not os.path.isdir(args.image_dir):  # kinda ugly
-        os.mkdir(args.image_dir)
+    if not os.path.isdir(args.file_dir):
+        os.mkdir(args.file_dir)
 
-    if len(os.listdir(args.image_dir)) != 0: 
-        print(f'Found existing image(s) in {args.image_dir}, removing them...')
-        files = glob.glob(args.image_dir+'/*.png')
+    if len(os.listdir(args.file_dir)) != 0: 
+        print(f'Found existing file(s) in {args.file_dir}, removing them...')
+        files = glob.glob(args.file_dir + '*')
         for f in files:
             os.remove(f)
 
@@ -107,11 +110,8 @@ if __name__ == '__main__':
                               diagnostic_timestep,
                               time_end,
                               no_disk)
-    
-
-    movie_kwargs = {'image_folder':args.image_dir, 'video_name': 'disk-evolution-pleasework2.avi', 'fps': 10}
 
     if no_disk:
-        runner.run_gravity_no_disk() #TODO: create this method in run_sims.py
+        runner.run_gravity_no_disk(args.file_dir)
     else:
-        runner.run_gravity_hydro_bridge(movie_kwargs)
+        runner.run_gravity_hydro_bridge(args.file_dir)

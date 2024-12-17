@@ -159,6 +159,7 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
 
         else:
             sys.exit('If you are seeing this, something broke in initializing this class...')
+            
 
     def make_system_no_disk(self, true_anomaly=0|units.rad, inclination=0|units.rad):
 
