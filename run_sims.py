@@ -9,6 +9,10 @@ import sys
 import os
 import cv2
 import glob
+import numpy as np
+
+from matplotlib.patches import ConnectionPatch
+
 
 
 def moviemaker(image_folder, video_name, fps):
@@ -125,6 +129,13 @@ class SimulationRunner():
 
         return gravity, hydro, gravhydro, channel, bodies
 
+    @staticmethod
+    def get_com(orbiter):
+        if len(orbiter) == 2:
+            com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
+        else: #orbiter
+            com = orbiter.copy().position
+        return com
 
     def run_gravity_hydro_bridge(self, movie_kwargs):
 
@@ -138,12 +149,12 @@ class SimulationRunner():
         model_time = 0 | units.Myr
 
         #extract orbiter which is the binary (or the single star)
-        orbiter = bodies[(bodies.name == 'primary') or (bodies.name == 'secondary')]
+        orbiter = bodies[np.logical_or((bodies.name == 'primary_star'),(bodies.name == 'secondary_star'))]
         smbh = bodies[(bodies.name == 'SMBH')] #extract BH
        
         #this prints the initial binary distance
         if len(orbiter) == 2:
-            pos1,pos2 = orbiter.position.in_(units.AU)
+            pos1, pos2 = orbiter.position.in_(units.AU)
             print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
 
         #Run simulation to end
@@ -168,17 +179,22 @@ class SimulationRunner():
             channel["to_disk"].copy()
 
             # Making plot of orbiter + disk
-            orbiter = bodies[(bodies.mass > 0.5 |units.Msun) & (bodies.mass < 10 |units.Msun)]
+            #extract orbiter which is the binary (or the single star)
+            orbiter = bodies[np.logical_or((bodies.name == 'primary_star'),(bodies.name == 'secondary_star'))]
+            smbh = bodies[(bodies.name == 'SMBH')] #extract BH
+            com = self.get_com(orbiter) #is a position vector
+
+            arrow_to_smbh = smbh.position - com
+            arrow_to_smbh = (arrow_to_smbh / arrow_to_smbh.length())[0] * 0.1 #normalize arrow to length 1
+ 
             if len(orbiter) == 2:
-                com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
                 pos1,pos2 = orbiter.position.in_(units.AU)
                 print(f'Binary distance = {abs(pos1 - pos2).length().in_(units.AU)} ')
-            elif len(orbiter) == 1:
-                com = orbiter.copy()
-            else:
+            elif len(orbiter) > 2:
                 sys.exit(f"There are too many bodies orbiting the smbh: {len(orbiter)}")
 
             fig, ax = plt.subplots(2, 2, figsize=(10,10))
+
             ax[0,0].scatter(orbiter.x.value_in(units.AU), orbiter.y.value_in(units.AU), zorder=100)
             ax[0,0].scatter(self.disk.x.value_in(units.AU), self.disk.y.value_in(units.AU), s=1)
             # ax[0,0].set_ylim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
@@ -188,22 +204,53 @@ class SimulationRunner():
 
             ax[1,0].scatter(orbiter.x.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
             ax[1,0].scatter(self.disk.x.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
-            # ax[1,0].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            # ax[1,0].set_ylim(com.z.value_in(units.AU) - 0.1, com.z.value_in(units.AU) + 0.1)
             # ax[1,0].set_xlim(com.x.value_in(units.AU) - 25, com.x.value_in(units.AU) + 25)
             ax[1,0].set_xlabel('x [AU]')
             ax[1,0].set_ylabel('z [AU]')
+            ax[1,0].ticklabel_format(useOffset=False)
 
             ax[1,1].scatter(orbiter.y.value_in(units.AU), orbiter.z.value_in(units.AU), zorder=100)
             ax[1,1].scatter(self.disk.y.value_in(units.AU), self.disk.z.value_in(units.AU), s=1)
-            # ax[1,1].set_ylim(com.z.value_in(units.AU) - 1, com.z.value_in(units.AU) + 1)
+            # ax[1,1].set_ylim(com.z.value_in(units.AU) - 0.1, com.z.value_in(units.AU) + 0.1)
             # ax[1,1].set_xlim(com.y.value_in(units.AU) - 25, com.y.value_in(units.AU) + 25)
             ax[1,1].set_xlabel('y [AU]')
             ax[1,1].set_ylabel('z [AU]')
+            ax[1,1].ticklabel_format(useOffset=False)
+
+            slice_dict = {0:[0,1],2:[0,2],3:[1,2]} #able to extract xy, xz and yz plane
+            for i,axis in enumerate(ax.flatten()):
+                if i == 1:
+                    continue
+
+                # com_plot = data_to_axis(com.value_in(units.AU)[slice_dict[i]]) #get the relevant com coordinates
+                com_plot = (0.5,0.5)
+                arrowhead = arrow_to_smbh[slice_dict[i]] #* (0.1 * yrange)
+
+                axis.annotate("", xy=arrowhead, xytext=com_plot,
+                            arrowprops=dict(arrowstyle="->"),xycoords='axes fraction',textcoords='axes fraction',
+                            )
+                
+                
+                data_to_axis = axis.transLimits.transform
+                axis_to_data = axis.transLimits.inverted().transform
+
+                print(axis_to_data(com_plot))
+                print(axis_to_data((0.5,0.5)))
+                axis.scatter(*axis_to_data(com_plot),marker='x',zorder=200)
+                axis.scatter(*axis_to_data(arrowhead),marker='^',zorder=200)
+                
+
+
             plt.tight_layout()
             fig.savefig(movie_kwargs['image_folder'] + 'disk-snapshot-' + f'{int(model_time.value_in(units.day))}.png', 
                         bbox_inches='tight',
                         dpi=200)
+            
             plt.close()
+
+            return    
+
 
         gravity.stop()
         hydro.stop()
