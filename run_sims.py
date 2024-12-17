@@ -139,19 +139,12 @@ class SimulationRunner():
             com = orbiter.copy().position
         return com
 
-    def run_gravity_hydro_bridge(self, movie_kwargs):
-
-        if not os.path.isdir(movie_kwargs['image_folder']):  # kinda ugly
-            os.mkdir(movie_kwargs['image_folder'])
-
+    def run_gravity_hydro_bridge(self, save_folder):
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
 
         initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
-
-        #extract orbiter which is the binary (or the single star)
-        orbiter = bodies[np.logical_or((bodies.name == 'primary_star'),(bodies.name == 'secondary_star'))]
        
         #this prints the initial binary distance
         # if len(orbiter) == 2:
@@ -174,12 +167,27 @@ class SimulationRunner():
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
-            write_set_to_file(bodies, movie_kwargs['image_folder']+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')# TODO: change folder
+            write_set_to_file(bodies, save_folder+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
 
         gravity.stop()
         hydro.stop()
 
-        moviemaker(**movie_kwargs)
+    def run_gravity_no_disk(self, save_folder):
+        gravity = self._initialize_gravity()
+        gravity.particles.add_particles(self.smbh_and_orbiter)
 
-    
+        model_time = 0 | units.Myr
+        initial_total_energy = gravity.get_total_energy()
+
+        while model_time < self.time_end:
+
+            model_time += self.diagnostic_timestep
+
+            dE_gravity = initial_total_energy / gravity.get_total_energy()
+
+            print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
+
+            gravity.evolve_model(model_time)
+
+            write_set_to_file(gravity.particles, save_folder+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
