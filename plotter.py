@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from amuse.units import units
 from amuse.io import read_set_from_file
+import argparse
+import os
+import glob
 
 # We define some properties for the figures
 import matplotlib as mpl
@@ -181,9 +184,6 @@ def plot_binary_with_arrow(particle_set):
         # print(axis_to_data(com_plot))
         # print(axis_to_data((0.5,0.5)))
 
-        
-
-
     plt.tight_layout()
     # fig.savefig(movie_kwargs['image_folder'] + 'disk-snapshot-' + f'{int(model_time.value_in(units.day))}.png', 
     #             bbox_inches='tight',
@@ -196,12 +196,27 @@ def plot_binary_with_arrow(particle_set):
 
 
 if __name__ == '__main__':
-    data = read_set_from_file('smbh_binary_disk.hdf5')
-    print(len(data))
+    parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
+    parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory where HDF5 files are stored.')
+    parser.add_argument('--image_dir',type=str,default='./images2/',help='Directory where plots will be stored.')
+    args = parser.parse_args()
 
-    time = 1 | units.yr
+    #empty out image directory
+    if len(os.listdir(args.image_dir)) != 0: 
+        print(f'Found existing image(s) in {args.image_dir}, removing them...')
+        files = glob.glob(args.image_dir+'/*.png')
+        for f in files:
+            os.remove(f)
 
-    plot_binary_with_arrow(data)
+    datafiles = glob.glob(args.file_dir+'/*.hdf5')
+    for datafile in datafiles:
+        data = read_set_from_file(datafile)
+        print(len(data))
+
+        time = 1 | units.yr
+
+        plot_binary_with_arrow(data)
+        #add any other relevant plots to be made
 
 
 
