@@ -5,6 +5,7 @@ from amuse.community.huayno.interface import Huayno
 from amuse.ext.composition_methods import *
 from amuse.units import units
 from amuse.io import write_set_to_file
+import numpy as np
 
 
 class SimulationRunner():
@@ -68,7 +69,7 @@ class SimulationRunner():
 
     def _initialize_bridge(self, gravity, hydro):
 
-        gravhydro = bridge.Bridge(use_threading=False)  # , method=SPLIT_4TH_S_M4)
+        gravhydro = bridge.Bridge(use_threading=False)
         gravhydro.add_system(gravity, (hydro,))
         gravhydro.add_system(hydro, (gravity,))
         gravhydro.timestep = self.gravhydro_timestep  # 0.1 * binary_period
@@ -89,74 +90,63 @@ class SimulationRunner():
         hydro = self._initialize_hydro()
         hydro.particles.add_particles(self.disk)
 
-        channel.update({"from_disk": self.disk.new_channel_to(hydro.particles)})
-        channel.update({"to_disk": hydro.particles.new_channel_to(self.disk)})
-
         bodies.add_particles(self.disk)
+
+        channel.update({"from_disk": bodies.new_channel_to(hydro.particles)})
+        channel.update({"to_disk": hydro.particles.new_channel_to(bodies)})
 
         gravhydro = self._initialize_bridge(gravity, hydro)
 
         return gravity, hydro, gravhydro, channel, bodies
     
 
-    @staticmethod
-    def get_com(orbiter):
-        if len(orbiter) == 2:
-            com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
-        else: #single body
-            com = orbiter.copy().position
-        return com
-    
-
     def run_gravity_hydro_bridge(self, save_folder):
+
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
 
         initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
-       
-        #this prints the initial binary distance
-        # if len(orbiter) == 2:
-        #     pos1, pos2 = orbiter.position.in_(units.AU)
-        #     print(f'INITIAL Binary distance = {abs(pos1 - pos2).length().in_(units.AU)}')
 
-        #Run simulation to end
+        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
         while model_time < self.time_end:
 
             model_time += self.diagnostic_timestep
-            
             dE_gravity = initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy()
             )
-
-            #Print some diagnostics
             print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
             
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
-            write_set_to_file(bodies, save_folder+ f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
         gravity.stop()
         hydro.stop()
 
 
     def run_gravity_no_disk(self, save_folder):
+
+        bodies = self.smbh_and_orbiter.copy()
+
         gravity = self._initialize_gravity()
-        gravity.particles.add_particles(self.smbh_and_orbiter)
+        gravity.particles.add_particles(bodies)
+        channel = gravity.particles.new_channel_to(bodies)
 
         model_time = 0 | units.Myr
         initial_total_energy = gravity.get_total_energy()
-
+        write_set_to_file(gravity.particles, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
         while model_time < self.time_end:
 
             model_time += self.diagnostic_timestep
-
             dE_gravity = initial_total_energy / gravity.get_total_energy()
-
             print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
 
             gravity.evolve_model(model_time)
+            channel.copy()
 
-            write_set_to_file(gravity.particles, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+
+        gravity.stop()
