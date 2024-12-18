@@ -7,7 +7,7 @@ import argparse
 import os
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
-from amuse.lab import Particles
+from amuse.lab import Particles, Particle
 
 
 # We define some properties for the figures
@@ -46,12 +46,20 @@ mpl.rcParams['xtick.minor.width'] = 1
 mpl.rcParams['ytick.minor.width'] = 1
 
 
-# def get_com(orbiter):
-#     if len(orbiter) == 2:
-#         com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
-#     else: #single body
-#         com = orbiter.copy().position
-#     return com
+def get_com(orbiter):
+    if len(orbiter) == 2:
+        com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
+    else: #single body
+        com = orbiter.copy().position
+    return com
+
+
+def get_com_vel(orbiter):
+    if len(orbiter) == 2:
+        com = (orbiter[0].velocity * orbiter[0].mass + orbiter[1].velocity * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
+    else: #single body
+        com = orbiter.copy().velocity
+    return com
 
 
 def plot_inc_ecc(ax, time, inc, ecc):
@@ -158,9 +166,10 @@ def plot_binary_disk_arrow(axes, particle_set, lim=30):
     particle_set.position -= particle_set[particle_set.name == 'primary_star'].position  # Center on primary
 
     disk = particle_set[particle_set.name == 'disk']
-    ax_xy.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1)
-    ax_yz.scatter(disk.y.value_in(units.AU), disk.z.value_in(units.AU), s=1)
-    ax_xz.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1)
+    sph_pos = (disk.position.number / np.abs(disk.position.number).max()) / 2 + 0.5  # Get rgb = xyz color on disk
+    ax_xy.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=sph_pos)
+    ax_yz.scatter(disk.y.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
+    ax_xz.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
     plot_stars(axes, particle_set, lim)
 
     smbh = particle_set[particle_set.name == 'SMBH']
@@ -195,8 +204,8 @@ def plot_binary_disk_arrow(axes, particle_set, lim=30):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
-    parser.add_argument('--file_dir',type=str,default='./snapshots-test/',help='Directory where HDF5 files are stored.')
-    parser.add_argument('--image_dir',type=str,default='./images-test/',help='Directory where plots will be stored.')
+    parser.add_argument('--file_dir',type=str,default='./snapshots-yesdisk/',help='Directory where HDF5 files are stored.')
+    parser.add_argument('--image_dir',type=str,default='./images-yesdisk/',help='Directory where plots will be stored.')
     args = parser.parse_args()
 
     if not os.path.isdir(args.image_dir):
@@ -223,16 +232,58 @@ if __name__ == '__main__':
     for time, datafile in zip(times, datafiles):
         data = read_set_from_file(datafile)  # Full particle set at single timestep
 
-        stars = data[ np.logical_or(data.name == 'primary_star', data.name == 'secondary_star') ]
-        com = stars[0]  # THIS IS JUST BECAUSE I WAS TOO LAZY TO GET THE ACTUAL COM AS A PARTICLE!!!!! CHANGE IT ASAP!!!
+        ### USE THIS FOR GETTING ECCENTRICITIES OF THE DISK ###
+
         disk = data[data.name == 'disk']
+        stars = data[ np.logical_or(data.name == 'primary_star', data.name == 'secondary_star') ]
+        com = Particle()
+        com.position = get_com(stars)
+        com.velocity = get_com_vel(stars)
+        com.mass = stars[0].mass + stars[1].mass
 
         _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
+
+        # plt.figure()
+        # plt.hist(eccs)
+        # plt.savefig(f'{args.image_dir}hist-{datafile.split('_')[-1].split('.')[0]}.png')
+        # plt.close()
+
+        ##########################################################
+
+
+        ### USE THIS TO GET ECCENTRICITIES IN CASE OF GRAVITY ONLY, WHICH STILL DOES NOT SAVE THE PARTICLE NAMES ###
+
+        # primary = data[1]
+        # primary.name = 'primary_star'
+        # secondary = data[2]
+        # secondary.name = 'secondary_star'
+
+        # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(primary, secondary, G=constants.G)  # unnecessary for loop
+
+        ############################################################################################################
 
         median_incs.append(np.mean(incs.value_in(units.deg)))
         median_eccs.append(np.mean(eccs))
         plot_time.append(time)
 
+        ### MAKE PLOT WITH ONLY THE BINARY ###
+
+        # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 9.5))
+        # plot_stars(np.array([ax1, ax2, ax3]), data, lim=5)
+        # plot_inc_ecc(ax4, 
+        #              plot_time | units.yr, 
+        #              median_incs | units.deg,
+        #              median_eccs)
+        # fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
+        # plt.tight_layout()
+        # # ax4.set_aspect('equal')
+
+        # fig.savefig(f'{args.image_dir}binary-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        # plt.close()
+
+        #########################################
+
+        ### MAKE PLOT WITH BINARY + DISK + ARROW ###
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,10))
         plot_binary_disk_arrow(np.array([ax1, ax2, ax3]), data)
@@ -245,6 +296,9 @@ if __name__ == '__main__':
         # ax4.set_aspect('equal')
 
         fig.savefig(f'{args.image_dir}binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        plt.close()
+
+        #########################################
         
 
         # gs = gridspec.GridSpec(4, 4)
@@ -253,17 +307,8 @@ if __name__ == '__main__':
         # ax2 = fig.add_subplot(gs[:2, 2:])
         # ax3 = fig.add_subplot(gs[2:4, 1:3])
         # plot_smbh_and_stars(np.array([ax1, ax2, ax3]), data)
-        # fig.suptitle(f'Time = {time.value_in(units.yr):.0f} year', fontsize=BIGGER_SIZE)
+        # fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
         # plt.tight_layout()
 
         # fig.savefig(f'{args.image_dir}smbh-and-stars-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
-
-
-        # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 9.5))
-        # plot_stars(np.array([ax1, ax2, ax3]), data, lim=1)
-        # plot_inc_ecc(ax4, np.linspace(0, 1, 100) | units.yr, np.linspace(0, 100, 100) | units.deg, np.linspace(0, 1, 100))
-        # fig.suptitle(f'Time = {time.value_in(units.yr):.0f} year', fontsize=BIGGER_SIZE)
-        # plt.tight_layout()
-        # # ax4.set_aspect('equal')
-
-        # fig.savefig(f'{args.image_dir}binary-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        # plt.close()

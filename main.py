@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--m_smbh', type=float, default=4.297e6, help='SMBH mass in solar masses')
     parser.add_argument('--a_out', type=float, default=44e-3, help='Semimajor axis of the orbit around the SMBH in pc')
     parser.add_argument('--e_out', type=float, default=0.32, help='Eccentricity of the orbit around the SMBH')
-    parser.add_argument('--m_orb', type=list, default=[2.8, 0.73], help='Mass(es) of orbiter(s) around the SMBH in solar masses in order [primary, secondary].')  # 2.8, 0.73
+    parser.add_argument('--m_orb', type=float, nargs='+', default=[2.8, 0.73], help='Mass(es) of orbiter(s) around the SMBH in solar masses in order [primary, secondary].')  # 2.8, 0.73
     parser.add_argument('--a_in', type=float, default=1.59, help='Semimajor axis of the binary orbit in AU')
     parser.add_argument('--e_in', type=float, default=0.45, help='Eccentricity of the binary orbit')
     parser.add_argument('--i_mut', type=float, default=102.55, help='Mutual inclination of the inner and outer orbits in deg')
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # This still assumes circular orbits
     hydro_timestep = 0.01 * binary_period     # Still fiducial value
     gravhydro_timestep = 0.1 * binary_period  # Same
-    print(f'HYDRO TIMESTEP: {hydro_timestep.value_in(units.s)} s, GRAVHYDRO TIMESTEP: {gravhydro_timestep.value_in(units.s)} s')
+    print(f'HYDRO TIMESTEP: {hydro_timestep.value_in(units.yr):.3f} year, GRAVHYDRO TIMESTEP: {gravhydro_timestep.value_in(units.yr):.3f} year')
     
     
     ShaiHulud = SystemMaker(smbh_mass,

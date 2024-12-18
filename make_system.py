@@ -1,10 +1,45 @@
 import sys
 from amuse.units.quantities import ScalarQuantity
-from amuse.units import units
+from amuse.units import units, constants
 from amuse.lab import Particles
 from amuse.ext.orbital_elements import generate_binaries
 from amuse.ext.protodisk import ProtoPlanetaryDisk
 from amuse.units import nbody_system
+import numpy as np
+
+from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
+import matplotlib.pyplot as plt
+
+
+def rotation_matrix(inclination, arg_of_periapse):
+    """
+    Lord forgive me, for I have used ChatGPT...
+    
+    Parameters:
+        inclination (float): Inclination angle in radians.
+        arg_of_periapse (float): Argument of periapsis in radians.
+    
+    Returns:
+        Rotation matrix
+    """
+    
+    # Rotation matrices
+    R_x = np.array([
+        [1, 0, 0],
+        [0, np.cos(inclination), -np.sin(inclination)],
+        [0, np.sin(inclination), np.cos(inclination)]
+    ])
+    
+    
+    R_z = np.array([
+        [np.cos(arg_of_periapse), -np.sin(arg_of_periapse), 0],
+        [np.sin(arg_of_periapse), np.cos(arg_of_periapse), 0],
+        [0, 0, 1]
+    ])
+
+    combined = R_x @ R_z
+    
+    return combined
 
 
 class SystemMaker:
@@ -85,8 +120,8 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                           self.smbh_mass,
                                           self.outer_semimajor_axis,
                                           eccentricity=self.outer_eccentricity,
-                                          true_anomaly=true_anomaly,
-                                          inclination=self.mutual_inclination)  # Passing inclination here makes it easier to add a disk in the same plane as the binary
+                                          true_anomaly=true_anomaly)
+                                        #   inclination=self.mutual_inclination)  # Passing inclination here makes it easier to add a disk in the same plane as the binary
         smbh.name = 'SMBH'
         orbiter.name = 'primary_star'
         return orbiter, smbh
@@ -98,13 +133,25 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                                self.inner_semimajor_axis, 
                                                eccentricity=self.inner_eccentricity, 
                                                true_anomaly=true_anomaly,
-                                               argument_of_periapsis=self.inner_arg_of_periapse)
+                                               argument_of_periapsis=self.inner_arg_of_periapse,
+                                               inclination=self.mutual_inclination)
+        
+        # matrix = rotation_matrix(self.mutual_inclination.value_in(units.rad), 
+        #                          self.inner_arg_of_periapse.value_in(units.rad))
+        # inverse_matrix = matrix.T
+        
+        # primary.position = (inverse_matrix @ primary.position.value_in(units.m).T).T | units.m
+        # secondary.position = (inverse_matrix @ secondary.position.value_in(units.m).T).T | units.m
+        # primary.velocity = (inverse_matrix @ primary.velocity.value_in(units.m / units.s).T).T | (units.m / units.s)
+        # secondary.velocity = (inverse_matrix @ secondary.velocity.value_in(units.m / units.s).T).T | (units.m / units.s)
+
         primary.position += orbiter.position
         secondary.position += orbiter.position
         primary.velocity += orbiter.velocity
         secondary.velocity += orbiter.velocity
         primary.name = 'primary_star'
         secondary.name = 'secondary_star'
+
         return primary, secondary
     
 
@@ -117,11 +164,23 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
                                   Rmin=self.disk_inner_radius/R, 
                                   Rmax=self.disk_outer_radius/R, 
                                   discfraction=self.disk_mass/self.com_orbiter_mass).result
+        
+        matrix = rotation_matrix(self.mutual_inclination.value_in(units.rad), 
+                                 self.inner_arg_of_periapse.value_in(units.rad))
+        
+        disk.position = (matrix @ disk.position.value_in(units.m).T).T | units.m
+        disk.velocity = (matrix @ disk.velocity.value_in(units.m / units.s).T).T | (units.m / units.s)
+
+        # disk.position = rotate_vector(disk.position.value_in(units.m), 
+        #                               pitch=0, yaw=self.mutual_inclination.value_in(units.rad), roll=-self.inner_arg_of_periapse.value_in(units.rad)) | units.m
+        # disk.velocity = rotate_vector(disk.velocity.value_in(units.m / units.s), 
+        #                               pitch=0, yaw=self.mutual_inclination.value_in(units.rad), roll=-self.inner_arg_of_periapse.value_in(units.rad)) | (units.m / units.s)
         disk.name = 'disk'
         disk.move_to_center()
         # Disk should be around the binary COM or single star
         disk.position += orbiter.position
         disk.velocity += orbiter.velocity
+        
         return disk
 
 
@@ -140,6 +199,16 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_orbiter.move_to_center()
             disk = self._make_disk_at_orbiter(orbiter, R)
 
+            # fig, ax = plt.subplots()
+            # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(orbiter, disk, G=constants.G)
+            # ax2 = ax.twinx()
+            # ax.hist(eccs, density=True, histtype="step", cumulative=True, bins=30, label='CDF', color='blue')
+            # ax2.hist(eccs, density=True, histtype="step", bins=30, label='PDF', color='red')
+            # ax.set_ylabel('CDF', color='blue')
+            # ax2.set_ylabel('PDF', color='red')
+            # ax.set_xlabel('e')
+            # plt.show()
+
             return smbh_and_orbiter, disk, converter
             
         elif self.n_orbiters == 2:
@@ -151,8 +220,18 @@ This code currently only supports 1 or 2 orbiters. Quitting.')
             smbh_and_binary.add_particle(smbh)
             smbh_and_binary.add_particle(primary)
             smbh_and_binary.add_particle(secondary)
-            smbh_and_binary.move_to_center()
+            # smbh_and_binary.move_to_center()
             disk = self._make_disk_at_orbiter(orbiter, R)
+
+            # fig, ax = plt.subplots()
+            # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(orbiter, disk, G=constants.G)
+            # ax2 = ax.twinx()
+            # ax.hist(eccs, density=True, histtype="step", cumulative=True, bins=30, label='CDF', color='blue')
+            # ax2.hist(eccs, density=True, histtype="step", bins=30, label='PDF', color='red')
+            # ax.set_ylabel('CDF', color='blue')
+            # ax2.set_ylabel('PDF', color='red')
+            # ax.set_xlabel('e')
+            # plt.show()
 
             return smbh_and_binary, disk, converter
 
