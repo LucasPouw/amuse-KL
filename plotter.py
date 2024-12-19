@@ -8,6 +8,7 @@ import os
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particles, Particle
+from tqdm import tqdm
 
 
 # We define some properties for the figures
@@ -92,7 +93,6 @@ def plot_smbh_and_stars(axes, particle_set, lim=10):
 
     smbh = particle_set[particle_set.name == 'SMBH']
     stars = particle_set[ np.logical_or(particle_set.name == 'primary_star', particle_set.name == 'secondary_star') ]
-    # stars = particle_set[particle_set.name == 'disk']
 
     ax_xy, ax_yz, ax_xz = axes
 
@@ -204,8 +204,8 @@ def plot_binary_disk_arrow(axes, particle_set, lim=30):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
-    parser.add_argument('--file_dir',type=str,default='./snapshots-yesdisk/',help='Directory where HDF5 files are stored.')
-    parser.add_argument('--image_dir',type=str,default='./images-yesdisk/',help='Directory where plots will be stored.')
+    parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory where HDF5 files are stored.')
+    parser.add_argument('--image_dir',type=str,default='./images-default/',help='Directory where plots will be stored.')
     args = parser.parse_args()
 
     if not os.path.isdir(args.image_dir):
@@ -229,17 +229,24 @@ if __name__ == '__main__':
     median_incs = []
     median_eccs = []
     plot_time = []
-    for time, datafile in zip(times, datafiles):
+    n_bound_list = []
+
+    print(f'Processing {len(datafiles)} snapshots...')
+    for time, datafile in tqdm(zip(times, datafiles)):
         data = read_set_from_file(datafile)  # Full particle set at single timestep
 
         ### USE THIS FOR GETTING ECCENTRICITIES OF THE DISK ###
 
         disk = data[data.name == 'disk']
         stars = data[ np.logical_or(data.name == 'primary_star', data.name == 'secondary_star') ]
-        com = Particle()
-        com.position = get_com(stars)
-        com.velocity = get_com_vel(stars)
-        com.mass = stars[0].mass + stars[1].mass
+
+        if len(stars) == 1:
+            com = stars
+        else:
+            com = Particle()
+            com.position = get_com(stars)
+            com.velocity = get_com_vel(stars)
+            com.mass = stars[0].mass + stars[1].mass
 
         _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
 
@@ -262,9 +269,16 @@ if __name__ == '__main__':
 
         ############################################################################################################
 
-        median_incs.append(np.mean(incs.value_in(units.deg)))
-        median_eccs.append(np.mean(eccs))
+        bound = eccs < 1
+        bound_eccs = eccs[bound]
+        bound_incs = incs[bound]
+        n_bound = np.sum(bound)
+
+        median_incs.append(np.median(incs.value_in(units.deg)))
+        median_eccs.append(np.median(eccs))
         plot_time.append(time)
+        n_bound_list.append(n_bound)
+
 
         ### MAKE PLOT WITH ONLY THE BINARY ###
 
