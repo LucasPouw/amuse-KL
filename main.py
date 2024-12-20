@@ -20,6 +20,8 @@ from amuse.units import units
 import argparse
 import glob
 
+import time
+
 
 Rmin_stable = 6.55 |units.AU  # minimum stable radius from MA criterion (TODO: change to couple with stable_radii.ipynb)
 Rmax_stable = 13.35 |units.AU  # maximum stable radius from Hill radius (TODO: ^^)
@@ -28,9 +30,8 @@ Rmax_stable = 13.35 |units.AU  # maximum stable radius from Hill radius (TODO: ^
 def orbital_period(mass, radius):
     return np.sqrt(radius.value_in(units.AU)**3 / mass.value_in(units.MSun)) | units.yr
 
-
-if __name__ == '__main__':
-
+def parse_args():
+    
     parser = argparse.ArgumentParser(description='Run hydro disk around a star or binary that is orbiting an SMBH')
     parser.add_argument('--m_smbh', type=float, default=4.297e6, help='SMBH mass in solar masses')
     parser.add_argument('--a_out', type=float, default=44e-3, help='Semimajor axis of the orbit around the SMBH in pc')
@@ -48,8 +49,18 @@ if __name__ == '__main__':
     parser.add_argument('--t_end', type=float, default=15, help='End time of the simulation in years')
     parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory for AMUSE snapshots in hdf5 format')
     parser.add_argument('--no_disk', type=bool, default=False, help='If True, no disk will be created. Simulation will be run using pure gravity.')
-    args = parser.parse_args()
+    parser.add_argument('--vary_radii',type=bool, default = False, help = 'If True, will start simulating with Rmin and Rmax for the disk and introduce stopping conditions for unbound particles, reducing the disk width and re-starting the simulation.')
+    return parser.parse_args()
 
+
+if __name__ == '__main__':
+    
+    start = time.time()
+
+
+    args = parse_args()
+
+    #Adding units to arguments
     smbh_mass = args.m_smbh | units.Msun
     outer_semimajor_axis = args.a_out | units.parsec
     outer_eccentricity = args.e_out
@@ -64,9 +75,9 @@ if __name__ == '__main__':
     n_sph_particles = args.n_disk
     diagnostic_timestep = args.dt | units.yr
     time_end = args.t_end | units.yr
-    no_disk = args.no_disk
 
     binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # This still assumes circular orbits
+    
     hydro_timestep = 0.01 * binary_period     # Still fiducial value
     gravhydro_timestep = 0.1 * binary_period  # Same
     print(f'HYDRO TIMESTEP: {hydro_timestep.value_in(units.yr):.3f} year, GRAVHYDRO TIMESTEP: {gravhydro_timestep.value_in(units.yr):.3f} year')
@@ -85,7 +96,7 @@ if __name__ == '__main__':
                             disk_mass,
                             n_sph_particles)  # Shai Hulud is the Maker
 
-    if no_disk:
+    if args.no_disk:
         print('Initializing system WITHOUT disk...')
         smbh_and_binary, converter = ShaiHulud.make_system_no_disk()
         disk = None  # Variable needs to be defined to avoid error in initializing SimulationRunner
@@ -109,9 +120,47 @@ if __name__ == '__main__':
                               gravhydro_timestep,
                               diagnostic_timestep,
                               time_end,
-                              no_disk)
+                              args.no_disk)
 
-    if no_disk:
+    if args.no_disk:
         runner.run_gravity_no_disk(args.file_dir)
     else:
-        runner.run_gravity_hydro_bridge(args.file_dir)
+        if not args.vary_radii:
+            runner.run_gravity_hydro_bridge(args.file_dir)
+        else:
+            print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
+            bound_fraction, inward_fraction, outward_fraction,sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
+                                                                                                                            n_sph_particles)
+            print()
+            print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}. Total: {bound_fraction + inward_fraction + outward_fraction}.')
+            
+            while bound_fraction < 0.5: #e.g. was the additional stopping condition called or did the simulation run to its end
+                #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
+                ShaiHulud.disk_inner_radius += inward_fraction*0.5|units.AU
+                ShaiHulud.disk_outer_radius -= outward_fraction*0.5|units.AU
+                print(f'STOPPING CONDITION REACHED after t = {sim_time}. ' + 
+                      F'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius} and Rmax = {ShaiHulud.disk_outer_radius}.')
+                print()
+
+                smbh_and_binary, disk, converter = ShaiHulud.make_system()
+                runner = SimulationRunner(smbh_and_binary,
+                                disk,
+                                converter,
+                                hydro_timestep,
+                                gravhydro_timestep,
+                                diagnostic_timestep,
+                                time_end,
+                                args.no_disk)
+                
+                bound_fraction, inward_fraction, outward_fraction, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
+                                                                                                                        n_sph_particles)
+            
+                print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}.' +
+                      f'Total: {bound_fraction + inward_fraction + outward_fraction}.')
+
+                print()
+    end = time.time()
+    print(f'Elapsed time: {end-start} seconds')
+
+
+
