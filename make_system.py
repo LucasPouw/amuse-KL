@@ -81,7 +81,7 @@ class SystemMaker:
 
         else:
             sys.exit(f'Detected {len(orbiter_mass)} masses to orbit the SMBH. \
-This code currently only supports 1 or 2 orbiters. Quitting.')
+                       This code currently only supports 1 or 2 orbiters. Quitting.')
             
 
     @staticmethod
