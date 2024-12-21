@@ -1,5 +1,6 @@
 import cv2
 import os
+os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
 import sys
 import glob
 import argparse

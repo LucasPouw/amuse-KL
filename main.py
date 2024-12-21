@@ -1,4 +1,6 @@
 import os
+os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
+
 from make_system import SystemMaker
 from run_sims import SimulationRunner
 import numpy as np

@@ -5,6 +5,8 @@ from amuse.units import units, constants
 from amuse.io import read_set_from_file
 import argparse
 import os
+print(os.getcwd())
+os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particles, Particle
@@ -299,7 +301,7 @@ if __name__ == '__main__':
         #########################################
 
         ### MAKE PLOT WITH BINARY + DISK + ARROW ###
-        
+            
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,10))
         plot_binary_disk_arrow(np.array([ax1, ax2, ax3]), data)
         plot_inc_ecc(ax4, 
@@ -310,7 +312,7 @@ if __name__ == '__main__':
         plt.tight_layout()
         # ax4.set_aspect('equal')
 
-        fig.savefig(f'{args.image_dir}binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        fig.savefig(f'{args.image_dir}/binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
         plt.close()
 
         #########################################
