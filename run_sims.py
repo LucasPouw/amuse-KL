@@ -131,8 +131,9 @@ class SimulationRunner():
         gravity.stop()
         hydro.stop()
 
+
     @staticmethod
-    def get_bound_disk_particles(particle_system,already_unbound):
+    def get_bound_disk_particles(particle_system, already_unbound):
         # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
         # it is called particle_system here
         disk = particle_system[particle_system.name == 'disk']
@@ -171,8 +172,8 @@ class SimulationRunner():
         num_flown_inwards = np.sum(dot_products < 0)
         num_flown_outwards = np.sum(dot_products > 0)
 
-
         return np.sum(bound), num_flown_inwards, num_flown_outwards, new_unbound_disk_particles.key
+    
 
     def run_gravity_hydro_bridge_stopping_condition(self, save_folder,N_init):
         #Rmin and Rmax should be specified here since they matter to the stopping condition
@@ -208,7 +209,7 @@ class SimulationRunner():
             N_outwards += new_n_outwards
             unbound_keys += list(new_unbound_keys)
 
-            if model_time % verbose_timestep == 0:
+            if not int(model_time.value_in(units.yr) % verbose_timestep.value_in(units.yr)):
                 print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
                 print(f"Number of bound particles: {Nbound}. Number lost inwards: {N_inwards} and outwards: {N_outwards}. Sums to {Nbound + N_inwards + N_outwards}")
                 print()
