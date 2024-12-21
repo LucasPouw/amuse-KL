@@ -35,7 +35,7 @@ def moviemaker(image_folder, video_name, fps=10, height=1080, width=1440):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make a video from a folder of images.')
-    parser.add_argument('--image_folder', type=str, required=True, help='Path to folder containing images. Required.')
+    parser.add_argument('--image_dir', type=str, required=True, help='Path to folder containing images. Required.')
     parser.add_argument('--video_name', type=str, required=True, help='Name of the video to be generated. Required.')
     parser.add_argument('--fps', default=10, type=int, help='Frames per second of the video.')
     parser.add_argument('--height', default=1080, type=int, help='Height of the video.')
