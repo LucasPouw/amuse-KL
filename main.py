@@ -146,7 +146,7 @@ if __name__ == '__main__':
                 ShaiHulud.disk_inner_radius += inner_fraction * 0.5|units.AU
                 ShaiHulud.disk_outer_radius -= outer_fraction * 0.5|units.AU
                 print(f'STOPPING CONDITION REACHED after t = {sim_time.in_(units.yr)}. ' + 
-                      F'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius} and Rmax = {ShaiHulud.disk_outer_radius}.')
+                      f'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius} and Rmax = {ShaiHulud.disk_outer_radius}.')
                 print()
 
                 smbh_and_binary, disk, converter = ShaiHulud.make_system()
@@ -182,6 +182,3 @@ if __name__ == '__main__':
 
     end = time.time()
     print(f'Elapsed time: {end-start} seconds')
-
-
-
