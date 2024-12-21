@@ -1,17 +1,4 @@
-#### Is this block still needed? ####
-
-# the following fixes are highly recommended
-
-#allow oversubscription for openMPI
 import os
-os.environ["OMPI_MCA_rmaps_base_oversubscribe"]="true"
-
-# use lower cpu resources for idle codes
-from amuse.support import options
-options.GlobalOptions.instance().override_value_for_option("polling_interval_in_milliseconds", 10)
-
-#####################################
-
 from make_system import SystemMaker
 from run_sims import SimulationRunner
 import numpy as np
@@ -126,18 +113,24 @@ if __name__ == '__main__':
         runner.run_gravity_no_disk(args.file_dir)
     else:
         if not args.vary_radii:
-            runner.run_gravity_hydro_bridge(args.file_dir)
+            # runner.run_gravity_hydro_bridge(args.file_dir)
+            _ = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir, n_sph_particles)
         else:
             print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
             bound_fraction, inward_fraction, outward_fraction,sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
                                                                                                                             n_sph_particles)
             print()
-            print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}. Total: {bound_fraction + inward_fraction + outward_fraction}.')
+            print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}. ' + 
+                  f'Total: {bound_fraction + inward_fraction + outward_fraction}.')
             
-            while bound_fraction < 0.5: #e.g. was the additional stopping condition called or did the simulation run to its end
+            while bound_fraction == 0.5 or sim_time < time_end: #e.g. was the additional stopping condition called or did the simulation not run to its end
+                #since inward_fraction and outward_fraction sum to 0.5, double them - now they signify relative fractions of the total decay
+                inward_fraction *= 2 
+                outward_fraction *= 2
+
                 #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
-                ShaiHulud.disk_inner_radius += inward_fraction*0.5|units.AU
-                ShaiHulud.disk_outer_radius -= outward_fraction*0.5|units.AU
+                ShaiHulud.disk_inner_radius += inward_fraction * 0.5|units.AU
+                ShaiHulud.disk_outer_radius -= outward_fraction * 0.5|units.AU
                 print(f'STOPPING CONDITION REACHED after t = {sim_time}. ' + 
                       F'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius} and Rmax = {ShaiHulud.disk_outer_radius}.')
                 print()

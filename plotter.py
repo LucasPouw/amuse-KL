@@ -206,6 +206,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
     parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory where HDF5 files are stored.')
     parser.add_argument('--image_dir',type=str,default='./images-default/',help='Directory where plots will be stored.')
+    parser.add_argument('--step_size',type=int,default=100,help='Generate a plot every step_size snapshot.')
     args = parser.parse_args()
 
     if not os.path.isdir(args.image_dir):
@@ -231,8 +232,8 @@ if __name__ == '__main__':
     plot_time = []
     n_bound_list = []
 
-    print(f'Processing {len(datafiles)} snapshots...')
-    for time, datafile in tqdm(zip(times, datafiles)):
+    print(f'Processing {len(datafiles)} snapshots, making a plot of every {args.step_size}...')
+    for time, datafile in tqdm(zip(times[::args.step_size], datafiles[::args.step_size])): #every args.step_size instance is looped over
         data = read_set_from_file(datafile)  # Full particle set at single timestep
 
         ### USE THIS FOR GETTING ECCENTRICITIES OF THE DISK ###

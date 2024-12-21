@@ -191,13 +191,14 @@ class SimulationRunner():
 
         write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
+        #controls the printing in the terminal, could be a function argument but hardcoded for laziness
+        verbose_timestep = 10 * self.diagnostic_timestep
+
         while (model_time < self.time_end) and (Nbound > (N_init // 2)): #add condition that num. of bound particles should not be halved
             model_time += self.diagnostic_timestep
             dE_gravity = initial_total_energy / (
                 gravity.get_total_energy() + hydro.get_total_energy() )
-            
-            print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
-            
+                        
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
@@ -206,8 +207,11 @@ class SimulationRunner():
             N_inwards += new_n_inwards
             N_outwards += new_n_outwards
             unbound_keys += list(new_unbound_keys)
-            print(f"Number of bound particles: {Nbound}. Number lost inwards: {N_inwards} and outwards: {N_outwards}. Sums to {Nbound + N_inwards + N_outwards}")
-            print()
+
+            if model_time % verbose_timestep == 0:
+                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
+                print(f"Number of bound particles: {Nbound}. Number lost inwards: {N_inwards} and outwards: {N_outwards}. Sums to {Nbound + N_inwards + N_outwards}")
+                print()
 
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
