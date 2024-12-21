@@ -163,7 +163,6 @@ class SystemMaker:
         
         return primary, secondary
     
-
     def _make_disk(self, R=1|units.AU):
         """R is needed to make Rmin and Rmax dimensionless, Sets the scale of the disk, should not be changed."""
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)  # This converter is only used here, no need to return it
@@ -175,7 +174,25 @@ class SystemMaker:
                                   discfraction=self.disk_mass/self.com_orbiter_mass).result
 
         disk.name = 'disk'
-        disk.move_to_center()        
+        disk.move_to_center()
+
+        ## bisection algorithm for finding Rhalf that should work but is not necessary 
+        # half_particles = self.n_disk // 2 #always an integer
+        # Rhalf = self.disk_inner_radius.value_in(units.AU)
+        # inner_particle_keys = disk[disk.position.length().value_in(units.AU) <= Rhalf].key
+        # num_inner_particles = len(inner_particle_keys)
+
+        # while num_inner_particles != half_particles:
+        #     if num_inner_particles < half_particles:
+        #         Rhalf += 0.5 * (self.disk_outer_radius.value_in(units.AU) - Rhalf) #move halfway to outer radius 
+        #     else:
+        #         Rhalf += 0.5 * (self.disk_inner_radius.value_in(units.AU) - Rhalf) #move halfway to inner radius
+
+        #     inner_particle_keys = disk[disk.position.length().value_in(units.AU) <= Rhalf].key
+        #     num_inner_particles = len(inner_particle_keys)
+
+        # disk.inner_particle = np.isin(disk.key, inner_particle_keys)
+
         return disk
 
 

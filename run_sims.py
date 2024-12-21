@@ -132,8 +132,7 @@ class SimulationRunner():
         hydro.stop()
 
 
-    @staticmethod
-    def get_bound_disk_particles(particle_system, already_unbound):
+    def get_bound_disk_particles(self,particle_system):
         # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
         # it is called particle_system here
         disk = particle_system[particle_system.name == 'disk']
@@ -149,30 +148,51 @@ class SimulationRunner():
         _, _, _, eccs, _, _, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
         bound = eccs < 1
 
+        #move disk to COM frame and isolate bound particles to define half particle radius
+        disk.position -= com.position
+        bound_disk_particles = disk[bound]
+
+        N_bound = np.sum(bound)
+        Nhalf = N_bound // 2
+
+        #I *really* don't like that this has to go via list comprehension, but it's the best way I found
+        #since bound_disk_particles.position.length() gives a single f-ing value...
+        bound_Rs = np.sort([pos.length().value_in(units.AU) for pos in bound_disk_particles.position])
+
+        Rhalf = (bound_Rs[Nhalf - 1] + bound_Rs[Nhalf]) / 2 #halfway between the largest inner particle radius en smallest outer particle radius
+        self.Rhalf_values.append(Rhalf)
+        disk.is_inner = [pos.length().value_in(units.AU) < Rhalf for pos in disk.position]
+        bound_disk_particles = disk[bound] #redefine so is_inner exists
+
         #particles may get rebound
         #remove those particles from already_bounded
-        rebounded = disk[bound][np.isin(disk[bound].key,already_unbound)].key
-        already_unbound = np.array(already_unbound)[np.invert(np.isin(already_unbound,rebounded))] 
+        rebounded = bound_disk_particles[np.isin(bound_disk_particles.key,self.already_unbound)].key
+        if len(rebounded) > 0: 
+            print(f' {len(rebounded)} particle(s) have re-bounded.')
+            print(rebounded)
+            # print(len(self.already_unbound))
+            # self.already_unbound = list(np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound,rebounded))])
+            # print(len(self.already_unbound))
 
-        #isolate unbound particles and find # inward and # outward escaped particles
         unbound_disk_particles = disk[np.invert(bound)]
-        print(f"#UNBOUND ({len(unbound_disk_particles)}) + #BOUND ({np.sum(bound)}) = {len(unbound_disk_particles) + np.sum(bound)}")
-        
         #isolate the unbound particles that have not previously gone unbound (based on their key)
-        already_unbound_mask = np.invert(np.isin(unbound_disk_particles.key, already_unbound))
+        already_unbound_mask = np.invert(np.isin(unbound_disk_particles.key, self.already_unbound))
         new_unbound_disk_particles = unbound_disk_particles[already_unbound_mask]
-        print(f"#new unbounds: {len(new_unbound_disk_particles)}")
 
-        new_unbound_disk_particles.position -= com.position
-        new_unbound_disk_particles.velocity -= com.velocity
-         # #I *really* don't like that this has to go via list comprehension, but it's the best way I found
-        # #since new_unbound_disk_particles.position.length() gives a single f-ing value...
-        dot_products = np.array([np.dot(part.velocity/part.velocity.length(),part.position / part.position.length()) for part in new_unbound_disk_particles])
+        self.already_unbound +=  list(new_unbound_disk_particles.key)
 
-        num_flown_inwards = np.sum(dot_products < 0)
-        num_flown_outwards = np.sum(dot_products > 0)
+        num_inner_unbound = np.sum(new_unbound_disk_particles.is_inner.astype(bool))
+        num_outer_unbound = np.sum(np.invert(new_unbound_disk_particles.is_inner.astype(bool)))
 
-        return np.sum(bound), num_flown_inwards, num_flown_outwards, new_unbound_disk_particles.key
+        ## OLD: velocity direction method, left just in case we need it again
+        # new_unbound_disk_particles.velocity -= com.velocity
+        #  # #I *really* don't like that this has to go via list comprehension, but it's the best way I found
+        # # #since new_unbound_disk_particles.position.length() gives a single f-ing value...
+        # dot_products = np.array([np.dot(part.velocity/part.velocity.length(),part.position / part.position.length()) for part in new_unbound_disk_particles])
+        # num_flown_inwards = np.sum(dot_products < 0)
+        # num_flown_outwards = np.sum(dot_products > 0)
+
+        return N_bound, len(unbound_disk_particles), num_inner_unbound, num_outer_unbound
     
 
     def run_gravity_hydro_bridge_stopping_condition(self, save_folder,N_init):
@@ -187,13 +207,14 @@ class SimulationRunner():
         model_time = 0 | units.Myr
 
         Nbound = N_init
-        N_inwards, N_outwards = 0, 0
-        unbound_keys = []
+        N_inner, N_outer = 0, 0
+        self.already_unbound = []
+        self.Rhalf_values = []
 
         write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
-        verbose_timestep = 10 * self.diagnostic_timestep
+        self.verbose_timestep = 10 * self.diagnostic_timestep
 
         while (model_time < self.time_end) and (Nbound > (N_init // 2)): #add condition that num. of bound particles should not be halved
             model_time += self.diagnostic_timestep
@@ -204,14 +225,16 @@ class SimulationRunner():
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
-            Nbound, new_n_inwards, new_n_outwards, new_unbound_keys = self.get_bound_disk_particles(bodies,unbound_keys) 
-            N_inwards += new_n_inwards
-            N_outwards += new_n_outwards
-            unbound_keys += list(new_unbound_keys)
+            #find the number of bound particles as well as new unbound particles and if they were inner or outer particles
+            Nbound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
+            N_inner += new_n_inwards
+            N_outer += new_n_outwards
 
-            if not int(model_time.value_in(units.yr) % verbose_timestep.value_in(units.yr)):
+            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
                 print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
-                print(f"Number of bound particles: {Nbound}. Number lost inwards: {N_inwards} and outwards: {N_outwards}. Sums to {Nbound + N_inwards + N_outwards}")
+                print(f"#Bound: {Nbound}, #unbound {N_unbound}.")
+                print(f'{len(self.already_unbound) = }')
+                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}. With bound, sums to {Nbound + N_inner + N_outer}")
                 print()
 
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
@@ -219,14 +242,14 @@ class SimulationRunner():
         gravity.stop()
         hydro.stop()
 
-        return Nbound/N_init, N_inwards/N_init, N_outwards/N_init, model_time
+        return Nbound/N_init, N_inner/N_init, N_outer/N_init, model_time
 
 
 #BELOW is the code that just checks the number of bound particles and only checks whether it flew inward or outward
 #at the end, after the stopping condition has been reached. This is probably wrong. 
 ##############################################################################################################
     # @staticmethod
-    # def get_bound_disk_particles(particle_system,already_unbound=[]):
+    # def get_bound_disk_particles(particle_system,self.already_unbound=[]):
     #     # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
     #     # it is called particle_system here
     #     disk = particle_system[particle_system.name == 'disk']
@@ -273,16 +296,16 @@ class SimulationRunner():
 
     #     # #particles may get rebound
     #     # #remove those particles from already_bounded
-    #     # rebounded = disk[bound][np.isin(disk[bound].key,already_unbound)].key
-    #     # already_unbound = np.array(already_unbound)[np.invert(np.isin(already_unbound,rebounded))] 
+    #     # rebounded = disk[bound][np.isin(disk[bound].key,self.already_unbound)].key
+    #     # self.already_unbound = np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound,rebounded))] 
 
     #     #isolate unbound particles and find # inward and # outward escaped particles
     #     unbound_disk_particles = disk[np.invert(bound)]
     #     print(f"#UNBOUND ({len(unbound_disk_particles)}) + #BOUND ({np.sum(bound)}) = {len(unbound_disk_particles) + np.sum(bound)}")
 
     #     # #isolate the unbound particles that have not previously gone unbound (based on their key)
-    #     # already_unbound_mask = np.invert(np.isin(unbound_disk_particles.key, already_unbound))
-    #     # new_unbound_disk_particles = unbound_disk_particles[already_unbound_mask]
+    #     # self.already_unbound_mask = np.invert(np.isin(unbound_disk_particles.key, self.already_unbound))
+    #     # new_unbound_disk_particles = unbound_disk_particles[self.already_unbound_mask]
     #     # print(f"#new unbounds: {len(new_unbound_disk_particles)}")
 
     #     # new_unbound_disk_particles.position -= com.position
