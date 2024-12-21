@@ -4,9 +4,12 @@ import matplotlib.gridspec as gridspec
 from amuse.units import units, constants
 from amuse.io import read_set_from_file
 import argparse
+
 import os
-print(os.getcwd())
-os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
+if 'amuse-KL' in os.getcwd(): 
+    os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo if relevant
+print(f'Saving all files in: {os.getcwd()}\n')
+
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particles, Particle

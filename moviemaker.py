@@ -1,6 +1,10 @@
 import cv2
+
 import os
-os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
+if 'amuse-KL' in os.getcwd(): 
+    os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo if relevant
+print(f'Saving all files in: {os.getcwd()}\n')
+
 import sys
 import glob
 import argparse

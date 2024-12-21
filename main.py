@@ -1,5 +1,7 @@
 import os
-os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo
+if 'amuse-KL' in os.getcwd(): 
+    os.chdir('..' ) #move one directory upwards to avoid saving stuff in the github repo if relevant
+print(f'Saving all files in: {os.getcwd()}\n')
 
 from make_system import SystemMaker
 from run_sims import SimulationRunner
@@ -61,7 +63,6 @@ if __name__ == '__main__':
     inner_radius = args.r_min | units.AU
     outer_radius = args.r_max | units.AU
     disk_mass = args.m_disk | units.Msun
-    n_sph_particles = args.n_disk
     diagnostic_timestep = args.dt | units.yr
     time_end = args.t_end | units.yr
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
                             inner_radius,
                             outer_radius,
                             disk_mass,
-                            n_sph_particles)  # Shai Hulud is the Maker
+                            args.n_disk)  # Shai Hulud is the Maker
 
     if args.no_disk:
         print('Initializing system WITHOUT disk...')
@@ -116,24 +117,35 @@ if __name__ == '__main__':
     else:
         if not args.vary_radii:
             # runner.run_gravity_hydro_bridge(args.file_dir)
-            _ = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir, n_sph_particles)
+            _ = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir, args.n_disk)
         else:
             print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
-            bound_fraction, inward_fraction, outward_fraction,sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
-                                                                                                                            n_sph_particles)
+            print(f'WE ARE IN {os.getcwd()}')
+            N_bound_over_time,N_lost_inner,N_lost_outer,sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
+                                                                                                           args.n_disk)
+            bound_fraction = N_bound_over_time[-1] / args.n_disk
+            total_unbound_cases = N_lost_inner + N_lost_outer
+            inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
+
+            #Extract array of half particle radii over time and save, which overwrites any other file with the same name
+            Rhalf_array = runner.Rhalf_values
+            Rhalf_filepath = os.path.join(os.getcwd(),f'Rhalf_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
+            print(Rhalf_filepath)
+            np.save(Rhalf_filepath,Rhalf_array)
+
+            #also save N_bound_over_time for later data processing
+            Nbound_filepath = os.path.join(os.getcwd(),f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
+            np.save(Nbound_filepath,N_bound_over_time)
+
             print()
-            print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}. ' + 
-                  f'Total: {bound_fraction + inward_fraction + outward_fraction}.')
-            
+            print(f'Bound fraction: {bound_fraction}, inward fraction: {inner_fraction}, outward fraction: {outer_fraction}.')
             while bound_fraction == 0.5 or sim_time < time_end: #e.g. was the additional stopping condition called or did the simulation not run to its end
-                #since inward_fraction and outward_fraction sum to 0.5, double them - now they signify relative fractions of the total decay
-                inward_fraction *= 2 
-                outward_fraction *= 2
+                #since inner_fraction and outer_fraction sum to 0.5, double them - now they signify relative fractions of the total decay
 
                 #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
-                ShaiHulud.disk_inner_radius += inward_fraction * 0.5|units.AU
-                ShaiHulud.disk_outer_radius -= outward_fraction * 0.5|units.AU
-                print(f'STOPPING CONDITION REACHED after t = {sim_time}. ' + 
+                ShaiHulud.disk_inner_radius += inner_fraction * 0.5|units.AU
+                ShaiHulud.disk_outer_radius -= outer_fraction * 0.5|units.AU
+                print(f'STOPPING CONDITION REACHED after t = {sim_time.in_(units.yr)}. ' + 
                       F'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius} and Rmax = {ShaiHulud.disk_outer_radius}.')
                 print()
 
@@ -147,13 +159,27 @@ if __name__ == '__main__':
                                 time_end,
                                 args.no_disk)
                 
-                bound_fraction, inward_fraction, outward_fraction, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
-                                                                                                                        n_sph_particles)
-            
-                print(f'Bound fraction: {bound_fraction}, inward fraction: {inward_fraction}, outward fraction: {outward_fraction}.' +
-                      f'Total: {bound_fraction + inward_fraction + outward_fraction}.')
+                N_bound_over_time,N_lost_inner,N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir,
+                                                                                                                 args.n_disk)
+                
+                bound_fraction = N_bound_over_time[-1] / args.n_disk
+                total_unbound_cases = N_lost_inner + N_lost_outer
+                inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
 
+                #Extract array of half particle radii over time and save, which overwrites any other file with the same name
+                Rhalf_array = runner.Rhalf_values
+                Rhalf_filepath = os.path.join(os.getcwd(),f'Rhalf_{ShaiHulud.disk_inner_radius}-{ShaiHulud.disk_outer_radius}.npy')
+                np.save(Rhalf_filepath,Rhalf_array)
+
+                #also save N_bound_over_time for later data processing
+                Nbound_filepath = os.path.join(os.getcwd(),f'Nbound_{ShaiHulud.disk_inner_radius}-{ShaiHulud.disk_outer_radius}.npy')
+                np.save(Nbound_filepath,N_bound_over_time)
+            
+                print(f'Bound fraction: {bound_fraction}, inward fraction: {inner_fraction}, outward fraction: {outer_fraction}.')
                 print()
+
+
+
     end = time.time()
     print(f'Elapsed time: {end-start} seconds')
 

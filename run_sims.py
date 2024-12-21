@@ -168,10 +168,10 @@ class SimulationRunner():
         #remove those particles from already_bounded
         rebounded = bound_disk_particles[np.isin(bound_disk_particles.key,self.already_unbound)].key
         if len(rebounded) > 0: 
-            print(f' {len(rebounded)} particle(s) have re-bounded.')
-            print(rebounded)
+            # print(f' {len(rebounded)} particle(s) have re-bounded.')
+            # print(rebounded)
             # print(len(self.already_unbound))
-            # self.already_unbound = list(np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound,rebounded))])
+            self.already_unbound = list(np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound,rebounded))])
             # print(len(self.already_unbound))
 
         unbound_disk_particles = disk[np.invert(bound)]
@@ -207,11 +207,14 @@ class SimulationRunner():
         model_time = 0 | units.Myr
 
         Nbound = N_init
+        Nbound_over_time = []
         N_inner, N_outer = 0, 0
         self.already_unbound = []
         self.Rhalf_values = []
 
-        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
+        #set overwrite to True incase we take vary_radii in main.py as True and we re-start the simulation
+        #with different inner and outer radii for the disk 
+        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5',overwrite_file=True)  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
         self.verbose_timestep = 10 * self.diagnostic_timestep
@@ -227,22 +230,24 @@ class SimulationRunner():
 
             #find the number of bound particles as well as new unbound particles and if they were inner or outer particles
             Nbound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
+            Nbound_over_time.append(Nbound)
             N_inner += new_n_inwards
             N_outer += new_n_outwards
 
             if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
                 print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
                 print(f"#Bound: {Nbound}, #unbound {N_unbound}.")
-                print(f'{len(self.already_unbound) = }')
-                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}. With bound, sums to {Nbound + N_inner + N_outer}")
+                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}. Number of rebounds: {Nbound + N_inner + N_outer - N_init}")
                 print()
 
-            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            #set overwrite to True incase we take vary_radii in main.py as True and we re-start the simulation
+            #with different inner and outer radii for the disk 
+            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5',overwrite_file=True)
 
         gravity.stop()
         hydro.stop()
 
-        return Nbound/N_init, N_inner/N_init, N_outer/N_init, model_time
+        return Nbound_over_time, N_inner, N_outer, model_time
 
 
 #BELOW is the code that just checks the number of bound particles and only checks whether it flew inward or outward
