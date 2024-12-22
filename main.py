@@ -147,7 +147,7 @@ if __name__ == '__main__':
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
 
-            N_bound_over_time, N_lost_inner, N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)  # TODO: fix single star case
+            N_bound_over_time, N_lost_inner, N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
             bound_fraction = N_bound_over_time[-1] / args.n_disk
             total_unbound_cases = N_lost_inner + N_lost_outer
             inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
@@ -190,11 +190,11 @@ if __name__ == '__main__':
                 dir_current_run = args.file_dir + f'/snapshots-rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}/'
                 os.mkdir(dir_current_run)
                 
-                N_bound_over_time,N_lost_inner,N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
+                N_bound_over_time, N_lost_inner, N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
                 
                 bound_fraction = N_bound_over_time[-1] / args.n_disk
                 total_unbound_cases = N_lost_inner + N_lost_outer
-                inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
+                inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases, N_lost_outer / total_unbound_cases
 
                 #Extract array of half particle radii over time and save, which overwrites any other file with the same name
                 Rhalf_array = runner.Rhalf_values

@@ -53,6 +53,8 @@ class SimulationRunner():
         self.diagnostic_timestep = diagnostic_timestep
         self.time_end = time_end
 
+        self.unbound_dict = {}
+
     
     def _initialize_gravity(self):
 
@@ -132,18 +134,23 @@ class SimulationRunner():
         hydro.stop()
 
 
-    def get_bound_disk_particles(self,particle_system):
+    def get_bound_disk_particles(self, particle_system):
+        """
+        Note that the inner/outer classification of unbound particles is made after they have been unbound,
+        so the particles have had max. 1 yr travel time (usually outwards) before we classify them. This 
+        could give a slight bias to outwards particles.
+        """
         # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
         # it is called particle_system here
-        disk = particle_system[particle_system.name == 'disk']
-        stars = particle_system[np.logical_or(particle_system.name == 'primary_star', particle_system.name == 'secondary_star')]
+        disk = particle_system[particle_system.name == 'disk'].copy()
+        stars = particle_system[np.logical_or(particle_system.name == 'primary_star', particle_system.name == 'secondary_star')].copy()
 
         #initialize com as a particle with the total stellar mass
         com = Particle()
         com.position = get_com(stars)
         com.velocity = get_com_vel(stars)
         com.mass = 0 | units.Msun
-        for star in stars: #works for both single and double star
+        for star in stars: # Works for both single and double star
             com.mass += star.mass 
         _, _, _, eccs, _, _, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
         bound = eccs < 1
@@ -153,36 +160,52 @@ class SimulationRunner():
         bound_disk_particles = disk[bound]
 
         N_bound = np.sum(bound)
-        Nhalf = N_bound // 2
+        Nhalf = N_bound // 2      
 
-        #I *really* don't like that this has to go via list comprehension, but it's the best way I found
-        #since bound_disk_particles.position.length() gives a single f-ing value...
-        bound_Rs = np.sort([pos.length().value_in(units.AU) for pos in bound_disk_particles.position])
+        bound_Rs = np.sort(np.linalg.norm(bound_disk_particles.position.value_in(units.AU), axis=1))
 
-        Rhalf = (bound_Rs[Nhalf - 1] + bound_Rs[Nhalf]) / 2 #halfway between the largest inner particle radius en smallest outer particle radius
+        Rhalf = (bound_Rs[Nhalf - 1] + bound_Rs[Nhalf]) / 2 # Halfway between the largest inner particle radius en smallest outer particle radius
         self.Rhalf_values.append(Rhalf)
-        disk.is_inner = [pos.length().value_in(units.AU) < Rhalf for pos in disk.position]
-        bound_disk_particles = disk[bound] #redefine so is_inner exists
 
-        #particles may get rebound
-        #remove those particles from already_bounded
-        rebounded = bound_disk_particles[np.isin(bound_disk_particles.key,self.already_unbound)].key
+        disk.is_inner = np.linalg.norm(disk.position.value_in(units.AU), axis=1) < Rhalf
+        bound_disk_particles = disk[bound] #redefine so is_inner exists
+        unbound_disk_particles = disk[np.invert(bound)]
+
+        for key in unbound_disk_particles.key:  # Make a dictionary that saves the inner/outer classification at time of unbounding
+            if key not in self.unbound_dict.keys():
+                self.unbound_dict[key] = unbound_disk_particles[unbound_disk_particles.key == key].is_inner.astype(bool)
+
+        # Particles may get rebound
+        rebounded = bound_disk_particles[np.isin(bound_disk_particles.key, self.already_unbound)].key
+
+        # Remove those particles from already_unbound and compensate for them in the counting
+        n_inner_rebound = 0
+        n_outer_rebound = 0
         if len(rebounded) > 0: 
             # print(f' {len(rebounded)} particle(s) have re-bounded.')
             # print(rebounded)
             # print(len(self.already_unbound))
-            self.already_unbound = list(np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound,rebounded))])
+            self.already_unbound = list(np.array(self.already_unbound)[np.invert(np.isin(self.already_unbound, rebounded))])
             # print(len(self.already_unbound))
 
-        unbound_disk_particles = disk[np.invert(bound)]
+            for key in rebounded:  # Avoid double counting by subtracting the #rebounds from the #bounds
+                if self.unbound_dict[key] == True:  # i.e. an inner particle got rebound
+                    n_inner_rebound += 1
+                elif self.unbound_dict[key] == False:  # i.e. an outer particle got rebound
+                    n_outer_rebound += 1
+                else:
+                    print(self.unbound_dict[key], 'fix this thing')
+
+                self.unbound_dict.pop(key)
+        
         #isolate the unbound particles that have not previously gone unbound (based on their key)
         already_unbound_mask = np.invert(np.isin(unbound_disk_particles.key, self.already_unbound))
         new_unbound_disk_particles = unbound_disk_particles[already_unbound_mask]
 
-        self.already_unbound +=  list(new_unbound_disk_particles.key)
+        self.already_unbound += list(new_unbound_disk_particles.key)
 
-        num_inner_unbound = np.sum(new_unbound_disk_particles.is_inner.astype(bool))
-        num_outer_unbound = np.sum(np.invert(new_unbound_disk_particles.is_inner.astype(bool)))
+        num_inner_unbound = np.sum(new_unbound_disk_particles.is_inner.astype(bool)) - n_inner_rebound
+        num_outer_unbound = np.sum(np.invert(new_unbound_disk_particles.is_inner.astype(bool))) - n_outer_rebound
 
         ## OLD: velocity direction method, left just in case we need it again
         # new_unbound_disk_particles.velocity -= com.velocity
@@ -195,59 +218,57 @@ class SimulationRunner():
         return N_bound, len(unbound_disk_particles), num_inner_unbound, num_outer_unbound
     
 
-    def run_gravity_hydro_bridge_stopping_condition(self, save_folder,N_init):
-        #Rmin and Rmax should be specified here since they matter to the stopping condition
-        #N_init is needed since we need to know how many disk particles we start with and 
-        #we return the relative bound fractions
+    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init):  # (TODO: N_init is also len(self.disk), but maybe don't bother)
 
+        """
+        Rmin and Rmax should be specified here since they matter to the stopping condition
+        N_init is needed since we need to know how many disk particles we start with and 
+        we return the relative bound fractions 
+        """
+        
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
         
         initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
         model_time = 0 | units.Myr
 
-        Nbound = N_init
-        Nbound_over_time = []
+        N_bound = N_init
+        N_bound_over_time = []
         N_inner, N_outer = 0, 0
         self.already_unbound = []
         self.Rhalf_values = []
 
-        #set overwrite to True incase we take vary_radii in main.py as True and we re-start the simulation
-        #with different inner and outer radii for the disk 
-        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5',overwrite_file=True)  # Save initial conditions
+        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
         self.verbose_timestep = 10 * self.diagnostic_timestep
 
-        while (model_time < self.time_end) and (Nbound > (N_init // 2)): #add condition that num. of bound particles should not be halved
+        while (model_time < self.time_end) and (N_bound > (N_init // 2)): #add condition that num. of bound particles should not be halved
             model_time += self.diagnostic_timestep
-            dE_gravity = initial_total_energy / (
-                gravity.get_total_energy() + hydro.get_total_energy() )
+            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
                         
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
             #find the number of bound particles as well as new unbound particles and if they were inner or outer particles
-            Nbound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
-            Nbound_over_time.append(Nbound)
+            N_bound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
+            N_bound_over_time.append(N_bound)
             N_inner += new_n_inwards
             N_outer += new_n_outwards
 
             if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
-                print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
-                print(f"#Bound: {Nbound}, #unbound {N_unbound}.")
-                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}. Number of rebounds: {Nbound + N_inner + N_outer - N_init}")
+                print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
+                print(f"#Bound: {N_bound}, #unbound {N_unbound}.")
+                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}.")
                 print()
 
-            #set overwrite to True incase we take vary_radii in main.py as True and we re-start the simulation
-            #with different inner and outer radii for the disk 
-            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5',overwrite_file=True)
+            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
         gravity.stop()
         hydro.stop()
 
-        return Nbound_over_time, N_inner, N_outer, model_time
+        return N_bound_over_time, N_inner, N_outer, model_time
 
 
 #BELOW is the code that just checks the number of bound particles and only checks whether it flew inward or outward

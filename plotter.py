@@ -56,7 +56,7 @@ def get_com(orbiter):
     if len(orbiter) == 2:
         com = (orbiter[0].position * orbiter[0].mass + orbiter[1].position * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
     else: #single body
-        com = orbiter.copy().position
+        com = orbiter.copy().position.flatten()
     return com
 
 
@@ -64,7 +64,7 @@ def get_com_vel(orbiter):
     if len(orbiter) == 2:
         com = (orbiter[0].velocity * orbiter[0].mass + orbiter[1].velocity * orbiter[1].mass) / (orbiter[0].mass + orbiter[1].mass)
     else: #single body
-        com = orbiter.copy().velocity
+        com = orbiter.copy().velocity.flatten()
     return com
 
 
