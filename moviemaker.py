@@ -43,7 +43,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     video_name = args.video_name
-    image_folder = args.image_folder
+    image_folder = args.image_dir
     fps = args.fps
     height = args.height
     width = args.width
