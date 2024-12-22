@@ -53,8 +53,6 @@ class SimulationRunner():
         self.diagnostic_timestep = diagnostic_timestep
         self.time_end = time_end
 
-        self.unbound_dict = {}
-
     
     def _initialize_gravity(self):
 
@@ -112,26 +110,43 @@ class SimulationRunner():
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
 
+        grav_energy = [] | units.J
+        hydro_energy = [] | units.J
+        times = [] | units.yr
+        
         initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
+        grav_energy.append(gravity.get_total_energy())
+        hydro_energy.append(hydro.get_total_energy())
+
         model_time = 0 | units.Myr
+        times.append(model_time)
+
+        #controls the printing in the terminal, could be a function argument but hardcoded for laziness
+        self.verbose_timestep = 10 * self.diagnostic_timestep
 
         write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
         while (model_time < self.time_end):
 
             model_time += self.diagnostic_timestep
-            dE_gravity = initial_total_energy / (
-                gravity.get_total_energy() + hydro.get_total_energy()
-            )
-            print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
-            
+
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
 
+            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
+            grav_energy.append(gravity.get_total_energy())
+            hydro_energy.append(hydro.get_total_energy())
+            times.append(model_time)
+
+            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
+                print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
+            
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
         gravity.stop()
         hydro.stop()
+
+        return grav_energy, hydro_energy, times
 
 
     def get_bound_disk_particles(self, particle_system):
@@ -139,6 +154,8 @@ class SimulationRunner():
         Note that the inner/outer classification of unbound particles is made after they have been unbound,
         so the particles have had max. 1 yr travel time (usually outwards) before we classify them. This 
         could give a slight bias to outwards particles.
+
+        There is some redundancy in already_unbound and unbound_dict, but who cares.
         """
         # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
         # it is called particle_system here
@@ -228,15 +245,24 @@ class SimulationRunner():
         
         # Note that bodies is everything (incl disk) and self.smbh_and_orbiter is the smbh + the binary
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
+
+        grav_energy = [] | units.J
+        hydro_energy = [] | units.J
+        times = [] | units.yr
         
         initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
+        grav_energy.append(gravity.get_total_energy())
+        hydro_energy.append(hydro.get_total_energy())
+
         model_time = 0 | units.Myr
+        times.append(model_time)
 
         N_bound = N_init
         N_bound_over_time = []
         N_inner, N_outer = 0, 0
         self.already_unbound = []
         self.Rhalf_values = []
+        self.unbound_dict = {}
 
         write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
@@ -245,11 +271,15 @@ class SimulationRunner():
 
         while (model_time < self.time_end) and (N_bound > (N_init // 2)): #add condition that num. of bound particles should not be halved
             model_time += self.diagnostic_timestep
-            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
                         
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
+
+            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
+            grav_energy.append(gravity.get_total_energy())
+            hydro_energy.append(hydro.get_total_energy())
+            times.append(model_time)
 
             #find the number of bound particles as well as new unbound particles and if they were inner or outer particles
             N_bound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
@@ -268,7 +298,7 @@ class SimulationRunner():
         gravity.stop()
         hydro.stop()
 
-        return N_bound_over_time, N_inner, N_outer, model_time
+        return N_bound_over_time, N_inner, N_outer, model_time, grav_energy, hydro_energy, times
 
 
 #BELOW is the code that just checks the number of bound particles and only checks whether it flew inward or outward
@@ -404,7 +434,6 @@ class SimulationRunner():
 ##############################################################################################################
 
 
-
     def run_gravity_no_disk(self, save_folder):
 
         bodies = self.smbh_and_orbiter.copy()
@@ -413,18 +442,34 @@ class SimulationRunner():
         gravity.particles.add_particles(bodies)
         channel = gravity.particles.new_channel_to(bodies)
 
-        model_time = 0 | units.Myr
+        energy = [] | units.J
+        times = [] | units.yr
+
         initial_total_energy = gravity.get_total_energy()
+        energy.append(initial_total_energy)
+        model_time = 0 | units.Myr
+        times.append(model_time)
+
         write_set_to_file(gravity.particles, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
+
+        # controls the printing in the terminal, could be a function argument but hardcoded for laziness
+        self.verbose_timestep = 100 * self.diagnostic_timestep
+
         while model_time < self.time_end:
 
             model_time += self.diagnostic_timestep
-            dE_gravity = initial_total_energy / gravity.get_total_energy()
-            print(f"Time:", model_time.in_(units.yr), "dE=", dE_gravity - 1)
-
             gravity.evolve_model(model_time)
             channel.copy()
+
+            relative_dE = initial_total_energy / gravity.get_total_energy() - 1
+            energy.append(gravity.get_total_energy())
+            times.append(model_time)
+
+            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
+                print(f"Time: {model_time.value_in(units.yr):.2E} yr. Relative energy error dE={relative_dE:.3E}")
 
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
 
         gravity.stop()
+
+        return energy, times

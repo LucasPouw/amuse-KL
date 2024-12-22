@@ -136,18 +136,38 @@ if __name__ == '__main__':
                               args.no_disk)
 
     if args.no_disk:
-        runner.run_gravity_no_disk(args.file_dir)  # TODO: fix print statements in this case
+        print(f'DOING A SINGLE GRAVITY-ONLY RUN UNTIL T={time_end}')
+        dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
+        os.mkdir(dir_current_run)
+        energy, times = runner.run_gravity_no_disk(dir_current_run)
+
+        np.save(args.file_dir + f'/energy-joules-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', energy)
+        np.save(args.file_dir + f'/times-year-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', times)
+
     else:
+
         if not args.vary_radii:
-            runner.run_gravity_hydro_bridge(args.file_dir)  # TODO: fix print statements in this case
-            # _ = runner.run_gravity_hydro_bridge_stopping_condition(args.file_dir, args.n_disk)
+            print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
+            dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
+            os.mkdir(dir_current_run)
+            grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run)
+
+            np.save(args.file_dir + f'/grav-energy-joules-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', grav_energy)
+            np.save(args.file_dir + f'/hydro-energy-joules-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', hydro_energy)
+            np.save(args.file_dir + f'/times-year-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', times)
+
         else:
             print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
             
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
 
-            N_bound_over_time, N_lost_inner, N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
+            N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
+
+            np.save(args.file_dir + f'/grav-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', grav_energy)
+            np.save(args.file_dir + f'/hydro-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', hydro_energy)
+            np.save(args.file_dir + f'/times-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', times)
+
             bound_fraction = N_bound_over_time[-1] / args.n_disk
             total_unbound_cases = N_lost_inner + N_lost_outer
             inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
@@ -168,12 +188,12 @@ if __name__ == '__main__':
             initial_disk_width = outer_radius - inner_radius
             shrink_per_it = shrink_percentage * initial_disk_width
             print(f'Shrinking the disk width by {shrink_percentage * 100}% each iteration, which is {shrink_per_it.value_in(units.AU):.3f} AU.')
-            while ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it:
+            while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it) and (sim_time.value_in(units.yr) != time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
 
                 #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
                 ShaiHulud.disk_inner_radius += inner_fraction * shrink_per_it
                 ShaiHulud.disk_outer_radius -= outer_fraction * shrink_per_it
-                print(f'STOPPING CONDITION REACHED after t = {sim_time.value_in(units.yr):.2E} yr. ' + 
+                print(f'\n----- INTERMEDIATE STOPPING CONDITION REACHED after t = {sim_time.value_in(units.yr):.2E} yr -----\n' + 
                       f'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius.value_in(units.AU):.3f} AU and Rmax = {ShaiHulud.disk_outer_radius.value_in(units.AU):.3f} AU.')
                 print()
 
@@ -190,7 +210,11 @@ if __name__ == '__main__':
                 dir_current_run = args.file_dir + f'/snapshots-rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}/'
                 os.mkdir(dir_current_run)
                 
-                N_bound_over_time, N_lost_inner, N_lost_outer, sim_time = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
+                N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
+
+                np.save(args.file_dir + f'/grav-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', grav_energy)
+                np.save(args.file_dir + f'/hydro-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', hydro_energy)
+                np.save(args.file_dir + f'/times-year-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', times)
                 
                 bound_fraction = N_bound_over_time[-1] / args.n_disk
                 total_unbound_cases = N_lost_inner + N_lost_outer
@@ -208,8 +232,10 @@ if __name__ == '__main__':
                 print(f'Bound fraction: {bound_fraction:.3f}, inward fraction: {inner_fraction:.3f}, outward fraction: {outer_fraction:.3f}.')
                 print()
             
-            print(f'STOPPING CONDITION REACHED after t = {sim_time.value_in(units.yr):.2E} yr. ')
-            print(f'Current disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Target was {shrink_per_it.value_in(units.AU):.3f} AU. Run ends.')
+            print('\n--------------------------- FINAL STOPPING CONDITION REACHED ---------------------------\n')
+            print(f'Current time is t = {sim_time.value_in(units.yr):.2E} yr. Stopping condition was {time_end.value_in(units.yr):.2E} yr.')
+            print(f'Current disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Stopping condition was {shrink_per_it.value_in(units.AU):.3f} AU.')
+            print('Run ends.')
 
 
     end = time.time()
