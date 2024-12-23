@@ -132,8 +132,7 @@ if __name__ == '__main__':
                               hydro_timestep,
                               gravhydro_timestep,
                               diagnostic_timestep,
-                              time_end,
-                              args.no_disk)
+                              time_end)
 
     if args.no_disk:
         print(f'DOING A SINGLE GRAVITY-ONLY RUN UNTIL T={time_end}')
@@ -212,8 +211,7 @@ if __name__ == '__main__':
                                 hydro_timestep,
                                 gravhydro_timestep,
                                 diagnostic_timestep,
-                                time_end,
-                                args.no_disk)
+                                time_end)
                 
                 dir_current_run = args.file_dir + f'/snapshots-rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}/'
                 os.mkdir(dir_current_run)
