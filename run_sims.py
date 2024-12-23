@@ -81,7 +81,7 @@ class SimulationRunner():
         self.diagnostic_timestep = diagnostic_timestep
         self.time_end = time_end
         self.gravity_string = gravity_code
-        match gravity_code:
+        match self.gravity_string:
             case 'Huayno': 
                 self.gravity_code = Huayno
             case 'Hermite':
@@ -89,7 +89,7 @@ class SimulationRunner():
             case 'HermiteGRX':
                 self.gravity_code = HermiteGRX
             case _:
-                raise ValueError("Given gravity code is not allowed, please specify either Huayno, Hermite or HermiteGRX")
+                raise ValueError("Given gravity code is not allowed, please specify either Huayno, Hermite or HermiteGRX.")
     
     def _initialize_gravity(self):
         """
@@ -104,7 +104,7 @@ class SimulationRunner():
             gravity.set_integrator('OK')
         elif self.gravity_string == 'HermiteGRX':
             gravity.parameters.perturbation = '1PN_Pairwise'
-            
+
         return gravity
         
 
@@ -161,7 +161,19 @@ class SimulationRunner():
         bodies = self.smbh_and_orbiter.copy()
 
         gravity = self._initialize_gravity()
-        gravity.particles.add_particles(bodies)
+
+        if self.gravity_string in ['Huayno','Hermite']:
+            gravity.particles.add_particles(bodies)
+
+        elif self.gravity_string == 'HermiteGRX': #HermiteGRX needs spatial extent of bodies
+            SagA_radius = (2 * constants.G * (4.5 * 1e6 | units.MSun) / (constants.c)**2).in_(units.km) #Schwarzschild radius of Sag A*, mass from https://iopscience.iop.org/article/10.1086/592738
+            D9a_radius = 2 | units.Rsun #from https://www.nature.com/articles/s41467-024-54748-3#Sec1
+            D9b_radius = (0.73)**0.56 * (1/2.8)**0.79 * D9a_radius #scaling relation from Kippenhahn R., Weigert A., 1990, Stellar Structure and Evolution
+            bodies.radius = [SagA_radius,D9a_radius,D9b_radius] 
+            gravity.particles.add_particles(bodies)
+        
+        else:
+            raise ValueError("How did this happen?")
 
         channel = {"from stars": bodies.new_channel_to(gravity.particles),
                     "to_stars": gravity.particles.new_channel_to(bodies)}
@@ -427,7 +439,20 @@ class SimulationRunner():
         bodies = self.smbh_and_orbiter.copy()
 
         gravity = self._initialize_gravity()
-        gravity.particles.add_particles(bodies)
+
+        if self.gravity_string in ['Huayno','Hermite']:
+            gravity.particles.add_particles(bodies)
+
+        elif self.gravity_string == 'HermiteGRX': #HermiteGRX needs spatial extent of bodies
+            SagA_radius = (2 * constants.G * (4.5 * 1e6 | units.MSun) / (constants.c)**2).in_(units.km) #Schwarzschild radius of Sag A*, mass from https://iopscience.iop.org/article/10.1086/592738
+            D9a_radius = 2 | units.Rsun #from https://www.nature.com/articles/s41467-024-54748-3#Sec1
+            D9b_radius = (0.73)**0.56 * (1/2.8)**0.79 * D9a_radius #scaling relation from Kippenhahn R., Weigert A., 1990, Stellar Structure and Evolution
+            bodies.radius = [SagA_radius,D9a_radius,D9b_radius] 
+            gravity.particles.add_particles(bodies)
+        
+        else:
+            raise ValueError("How did this happen?")
+        
         channel = gravity.particles.new_channel_to(bodies)
 
         energy = [] | units.J
