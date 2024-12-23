@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
             np.save(args.file_dir + f'/grav-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', grav_energy)
             np.save(args.file_dir + f'/hydro-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', hydro_energy)
-            np.save(args.file_dir + f'/times-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', times)
+            np.save(args.file_dir + f'/times-years-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', times)
 
             bound_fraction = N_bound_over_time[-1] / args.n_disk
             total_unbound_cases = N_lost_inner + N_lost_outer
@@ -188,11 +188,19 @@ if __name__ == '__main__':
             initial_disk_width = outer_radius - inner_radius
             shrink_per_it = shrink_percentage * initial_disk_width
             print(f'Shrinking the disk width by {shrink_percentage * 100}% each iteration, which is {shrink_per_it.value_in(units.AU):.3f} AU.')
-            while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it) and (sim_time.value_in(units.yr) != time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
+            outer_radii = []
+            inner_radii = []
 
+            while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it) and (sim_time.value_in(units.yr) != time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
+                
                 #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
                 ShaiHulud.disk_inner_radius += inner_fraction * shrink_per_it
                 ShaiHulud.disk_outer_radius -= outer_fraction * shrink_per_it
+
+                #save the inner and outer radii for later analysis
+                outer_radii.append(ShaiHulud.disk_outer_radius.value_in(units.AU))
+                inner_radii.append(ShaiHulud.disk_inner_radius.value_in(units.AU))
+
                 print(f'\n----- INTERMEDIATE STOPPING CONDITION REACHED after t = {sim_time.value_in(units.yr):.2E} yr -----\n' + 
                       f'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius.value_in(units.AU):.3f} AU and Rmax = {ShaiHulud.disk_outer_radius.value_in(units.AU):.3f} AU.')
                 print()
@@ -237,6 +245,8 @@ if __name__ == '__main__':
             print(f'Current disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Stopping condition was {shrink_per_it.value_in(units.AU):.3f} AU.')
             print('Run ends.')
 
+            np.save(args.file_dir + f'/outer_rad_au.npy', outer_radii)
+            np.save(args.file_dir + f'/inner_rad_au.npy', inner_radii)
 
     end = time.time()
     print(f'Elapsed time: {end-start} seconds')
