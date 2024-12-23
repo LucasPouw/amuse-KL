@@ -37,7 +37,7 @@ def get_parser():
     parser.add_argument('--t_end',      type=float, default=250000,         help='End time of the simulation in years')
     parser.add_argument('--file_dir',   type=str,   default=os.getcwd(),    help='Directory for the folder containing all output')
     parser.add_argument('--no_disk',    type=bool,  default=False,          help='If True, no disk will be created. Simulation will be run using pure gravity.')
-    parser.add_argument('--vary_radii', type=bool,  default=False,help='If True, will start simulating with Rmin and Rmax for the disk and introduce stopping conditions for unbound particles, reducing the disk width and re-starting the simulation.')
+    parser.add_argument('--vary_radii', type=bool,  default=False,          help='If True, will start simulating with Rmin and Rmax for the disk and introduce stopping conditions for unbound particles, reducing the disk width and re-starting the simulation.')
     return parser
 
 
