@@ -52,6 +52,7 @@ def get_parser():
     parser.add_argument('--file_dir',   type=str,   default=os.getcwd(),    help='Directory for the folder containing all output')
     parser.add_argument('--no_disk',    type=bool,  default=False,          help='If True, no disk will be created. Simulation will be run using pure gravity.')
     parser.add_argument('--vary_radii', type=bool,  default=False,          help='If True, will start simulating with Rmin and Rmax for the disk and introduce stopping conditions for unbound particles, reducing the disk width and re-starting the simulation.')
+    parser.add_argument('--grav_code',  type=str,   default='Huayno',       help='Gravity code to use. Allowed choices are Huayno, Hermite and HermiteGRX', choices= ['Huayno','Hermite','HermiteGRX']      )
     return parser
 
 
@@ -149,7 +150,8 @@ if __name__ == '__main__':
                               hydro_timestep,
                               gravhydro_timestep,
                               diagnostic_timestep,
-                              time_end)
+                              time_end,
+                              args.grav_code)
 
     if args.no_disk: # Simple gravity-only run
 
@@ -158,8 +160,8 @@ if __name__ == '__main__':
         os.mkdir(dir_current_run)
         energy, times = runner.run_gravity_no_disk(dir_current_run)
 
-        np.save(args.file_dir + f'/energy-joules-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', energy.value_in(units.J))
-        np.save(args.file_dir + f'/times-year-rmin{args.r_min.value_in(units.AU):.3f}-rmax{args.r_max.value_in(units.AU):.3f}.npy', times.value_in(units.yr))
+        np.save(args.file_dir + f'/energy-joules-rmin{args.r_min:.3f}-rmax{args.r_max:.3f}.npy', energy.value_in(units.J))
+        np.save(args.file_dir + f'/times-year-rmin{args.r_min:.3f}-rmax{args.r_max:.3f}.npy', times.value_in(units.yr))
 
     else:
 

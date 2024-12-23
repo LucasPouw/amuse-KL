@@ -1,7 +1,8 @@
 from amuse.community.fi.interface import Fi
 from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
-# from amuse.community.hermite.interface import HermiteGRX
+from amuse.community.hermite.interface import Hermite
+from amuse.community.hermite_grx.interface import HermiteGRX
 from amuse.ext.composition_methods import *
 from amuse.units import units,constants
 from amuse.io import write_set_to_file
@@ -50,7 +51,8 @@ class SimulationRunner():
                  hydro_timestep,
                  gravhydro_timestep,
                  diagnostic_timestep,
-                 time_end) -> None:
+                 time_end,
+                 gravity_code) -> None:
         """
         Initialize the SimulationRunner with the given parameters.
 
@@ -78,7 +80,16 @@ class SimulationRunner():
         self.gravhydro_timestep = gravhydro_timestep
         self.diagnostic_timestep = diagnostic_timestep
         self.time_end = time_end
-
+        self.gravity_string = gravity_code
+        match gravity_code:
+            case 'Huayno': 
+                self.gravity_code = Huayno
+            case 'Hermite':
+                self.gravity_code = Hermite
+            case 'HermiteGRX':
+                self.gravity_code = HermiteGRX
+            case _:
+                raise ValueError("Given gravity code is not allowed, please specify either Huayno, Hermite or HermiteGRX")
     
     def _initialize_gravity(self):
         """
@@ -88,8 +99,12 @@ class SimulationRunner():
         ---------
         Huayno instance with initialized parameters.
         """
-        gravity = Huayno(self.converter)
-        gravity.set_integrator('OK')
+        gravity = self.gravity_code(self.converter)
+        if self.gravity_string == 'Huayno':
+            gravity.set_integrator('OK')
+        elif self.gravity_string == 'HermiteGRX':
+            gravity.parameters.perturbation = '1PN_Pairwise'
+            
         return gravity
         
 
