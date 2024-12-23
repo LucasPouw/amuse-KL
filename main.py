@@ -17,9 +17,23 @@ if 'amuse-KL' in os.getcwd():
 
 
 def orbital_period(mass, radius):
+    """ Calculates orbital period of circularly orbiting body.
+
+    Args:
+        mass (amuse.units.quantity): Total mass involved with mass units
+        radius (amuse.units.quantity): Radius of orbit in length units.
+
+    Returns:
+        amuse.units.quantity: Orbital period in years. 
+    """
     return np.sqrt(radius.value_in(units.AU)**3 / mass.value_in(units.MSun)) | units.yr
 
 def get_parser():
+    """Makes the argparser for terminal control of the simulation. 
+
+    Returns:
+        argparse.ArgumentParser: Argparser with relevant arguments and given values.
+    """
     parser = argparse.ArgumentParser(description='Run hydro disk around a star or binary that is orbiting an SMBH')
     parser.add_argument('--m_smbh',     type=float, default=4.297e6,        help='SMBH mass in solar masses')
     parser.add_argument('--a_out',      type=float, default=44e-3,          help='Semimajor axis of the orbit around the SMBH in pc')
@@ -43,8 +57,9 @@ def get_parser():
 
 if __name__ == '__main__':
     
-    start = time.time()
+    start = time.time() # We want to know how long the code runs for
 
+    # Initialize args from terminal
     parser = get_parser()
     args = parser.parse_args()
 
@@ -84,7 +99,7 @@ if __name__ == '__main__':
         else:
             print('Bruh...')
 
-    #Adding units to arguments
+    #Adding units to arguments where relevant
     smbh_mass = args.m_smbh | units.Msun
     outer_semimajor_axis = args.a_out | units.parsec
     outer_eccentricity = args.e_out
@@ -99,12 +114,13 @@ if __name__ == '__main__':
     diagnostic_timestep = args.dt | units.yr
     time_end = args.t_end | units.yr
 
-    binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis)  # TODO: this still assumes circular orbits
+    #Initializing timesteps
+    binary_period = orbital_period(sum(args.m_orb) | units.Msun, inner_semimajor_axis) # Assumes circular orbit but works fine 
     hydro_timestep = 0.01 * binary_period
     gravhydro_timestep = 0.1 * binary_period
     print(f'\nHYDRO TIMESTEP: {hydro_timestep.value_in(units.yr):.3f} year, GRAVHYDRO TIMESTEP: {gravhydro_timestep.value_in(units.yr):.3f} year\n')
     
-    
+    # Make system, see make_system.py for details
     ShaiHulud = SystemMaker(smbh_mass,
                             orbiter_masses,
                             outer_semimajor_axis,
@@ -126,6 +142,7 @@ if __name__ == '__main__':
         print('Initializing system WITH disk...\n')
         smbh_and_binary, disk, converter = ShaiHulud.make_system()
 
+    # Creating the runner of the simulation, see run_sims.py for details
     runner = SimulationRunner(smbh_and_binary,
                               disk,
                               converter,
@@ -134,7 +151,8 @@ if __name__ == '__main__':
                               diagnostic_timestep,
                               time_end)
 
-    if args.no_disk:
+    if args.no_disk: # Simple gravity-only run
+
         print(f'DOING A SINGLE GRAVITY-ONLY RUN UNTIL T={time_end}')
         dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
         os.mkdir(dir_current_run)
@@ -145,7 +163,10 @@ if __name__ == '__main__':
 
     else:
 
-        if not args.vary_radii:
+        # The vary_radii argument controls whether we use an additional stopping condition that stops the sim when half the disk has
+        # been ejected from the system. If this is the case, we shrink the disk and re-start the run (ergo varying the radii). 
+
+        if not args.vary_radii: # Run gravity + hydro until the end without additional stopping condition
             print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
@@ -155,38 +176,44 @@ if __name__ == '__main__':
             np.save(args.file_dir + f'/hydro-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', hydro_energy.value_in(units.J))
             np.save(args.file_dir + f'/times-year-rmin{args.r_min}-rmax{args.r_max}.npy', times.value_in(units.yr))
 
-        else:
+        else: # Run with additional stopping condition
+
             print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
-            
+
+            # Since we do several runs now, save all relevant data in a folder pertaining to the simulation in question
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
-
+            
             N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
-
+            
+            # Save energy and time information from the simulation in .npy files for later analysis
             np.save(args.file_dir + f'/grav-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', grav_energy.value_in(units.J))
             np.save(args.file_dir + f'/hydro-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', hydro_energy.value_in(units.J))
             np.save(args.file_dir + f'/times-years-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', times.value_in(units.yr))
 
+            # Calculate the fractions of unbounded particles from the outer and inner disk
             bound_fraction = N_bound_over_time[-1] / args.n_disk
             total_unbound_cases = N_lost_inner + N_lost_outer
             inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases , N_lost_outer / total_unbound_cases
 
-            # Extract array of half particle radii over time and save, which overwrites any other file with the same name
+            # Extract array of half particle radii over time and save
             Rhalf_array = runner.Rhalf_values
             Rhalf_filepath = os.path.join(args.file_dir, f'Rhalf_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
             np.save(Rhalf_filepath, Rhalf_array)
 
-            #also save N_bound_over_time for later data processing
+            # Also save N_bound_over_time for later data processing
             Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
             np.save(Nbound_filepath, N_bound_over_time)
 
             print()
             print(f'Bound fraction: {bound_fraction:.3f}, inward fraction: {inner_fraction:.3f}, outward fraction: {outer_fraction:.3f}.')
 
+            # Define parameters for shrinking the disk. We hardcode the shrink percentage to 10%. 
+            # Stopping condition may not have been reached in this first run, so only print that it has when relevant
             shrink_percentage = 0.1
             initial_disk_width = outer_radius - inner_radius
             shrink_per_it = shrink_percentage * initial_disk_width
-            if (sim_time.value_in(units.yr) < time_end.value_in(units.yr)): #stopping condition reached, print this 
+            if (sim_time.value_in(units.yr) < time_end.value_in(units.yr)):
                 print(f'Shrinking the disk width by {shrink_percentage * 100}% each iteration, which is {shrink_per_it.value_in(units.AU):.3f} AU.')
             
             #Creating lists of outer/inner radii and lost fraction to save across runs
@@ -194,13 +221,14 @@ if __name__ == '__main__':
             inner_radii = [ShaiHulud.disk_inner_radius.value_in(units.AU)]
             inner_fraction_arr, outer_fraction_arr = [inner_fraction], [outer_fraction]
 
+            # We will repeat the simulation done above for a thinner disk until the simulation can run to its end.
             while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it) and (sim_time.value_in(units.yr) < time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
                 
-                #shrink the disk by a total of 0.5 AU, inner and outer disk relative to the number of lost particles
+                # Shrink the disk in total 10%, with the inner and outer disk shrinkage relative to the number of lost particles
                 ShaiHulud.disk_inner_radius += inner_fraction * shrink_per_it
                 ShaiHulud.disk_outer_radius -= outer_fraction * shrink_per_it
 
-                #save the inner and outer radii for later analysis
+                # Save the inner and outer radii for later analysis
                 outer_radii.append(ShaiHulud.disk_outer_radius.value_in(units.AU))
                 inner_radii.append(ShaiHulud.disk_inner_radius.value_in(units.AU))
 
@@ -208,6 +236,7 @@ if __name__ == '__main__':
                       f'RUNNING AGAIN WITH Rmin = {ShaiHulud.disk_inner_radius.value_in(units.AU):.3f} AU and Rmax = {ShaiHulud.disk_outer_radius.value_in(units.AU):.3f} AU.')
                 print()
 
+                # Remake system variables and runner with new disk radii
                 smbh_and_binary, disk, converter = ShaiHulud.make_system()
                 runner = SimulationRunner(smbh_and_binary,
                                 disk,
@@ -217,9 +246,12 @@ if __name__ == '__main__':
                                 diagnostic_timestep,
                                 time_end)
                 
+                # Create folder of this new run
                 dir_current_run = args.file_dir + f'/snapshots-rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}/'
                 os.mkdir(dir_current_run)
                 
+                #Below is the same as before the while-loop
+
                 N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
 
                 np.save(args.file_dir + f'/grav-energy-joules-{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy', grav_energy.value_in(units.J))
@@ -231,31 +263,33 @@ if __name__ == '__main__':
                 total_unbound_cases = N_lost_inner + N_lost_outer
                 inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases, N_lost_outer / total_unbound_cases
 
-                #Saving fractions
-                inner_fraction_arr.append(inner_fraction)
-                outer_fraction_arr.append(outer_fraction)
-
-                #Extract array of half particle radii over time and save, which overwrites any other file with the same name
                 Rhalf_array = runner.Rhalf_values
                 Rhalf_filepath = os.path.join(args.file_dir,f'Rhalf_rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
                 np.save(Rhalf_filepath,Rhalf_array)
 
-                #also save N_bound_over_time for later data processing
                 Nbound_filepath = os.path.join(args.file_dir,f'Nbound_rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
                 np.save(Nbound_filepath, N_bound_over_time)
+                
+                #Saving fractions across runs
+                inner_fraction_arr.append(inner_fraction)
+                outer_fraction_arr.append(outer_fraction)
+
             
                 print(f'Bound fraction: {bound_fraction:.3f}, inward fraction: {inner_fraction:.3f}, outward fraction: {outer_fraction:.3f}.')
                 print()
             
+            #Some diagnostic output to show after a simulation has run until t_end
             print('\n--------------------------- FINAL STOPPING CONDITION REACHED ---------------------------\n')
-            print(f'Current time is t = {sim_time.value_in(units.yr):.2E} yr. Stopping condition was {time_end.value_in(units.yr):.2E} yr.')
-            print(f'Current disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Stopping condition was {shrink_per_it.value_in(units.AU):.3f} AU.')
+            print(f'Simulation time is t = {sim_time.value_in(units.yr):.2E} yr. Stopping condition was {time_end.value_in(units.yr):.2E} yr.')
+            print(f'Final disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Stopping condition was {shrink_per_it.value_in(units.AU):.3f} AU.')
             print('Run ends.')
 
+            # Save relevant arrays with data across runs
             np.save(args.file_dir + f'/outer_rad_au.npy', outer_radii)
             np.save(args.file_dir + f'/inner_rad_au.npy', inner_radii)
             np.save(args.file_dir + f'/inner_fraction.npy',inner_fraction_arr)
             np.save(args.file_dir + f'/outer_fraction.npy',outer_fraction_arr)
 
+    #Show runtime of the code
     end = time.time()
     print(f'Elapsed time: {(end - start)/3600} hours')
