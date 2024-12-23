@@ -1,45 +1,59 @@
 import sys
 from amuse.units.quantities import ScalarQuantity
-from amuse.units import units, constants
-from amuse.lab import Particles, Particle
+from amuse.units import units
+from amuse.lab import Particles
 from amuse.ext.orbital_elements import generate_binaries
 from amuse.ext.protodisk import ProtoPlanetaryDisk
 from amuse.units import nbody_system
 import numpy as np
 
-from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
-import matplotlib.pyplot as plt
-
 
 class SystemMaker:
-
-    # TODO: finish documentation
-
     """
-    Class for simulating orbiting stars or binaries with disks around a black hole.
+    Class for creating an amuse.lab.Particles instance representing a single or 
+    binary with a hydro disk that is orbiting a supermassive black hole (SMBH).
 
     Attributes
-    ------------
-    smbh_mass
-    com_orbiter_mass
-    primary_mass: only if the orbiter is a binary
-    secondary_mass: only if the orbiter is a binary
-    outer_semimajor_axis
-    outer_eccentricity
-    inner_semimajor_axis
-    mutual_inclination
-    inner_eccentricity
-    inner_arg_of_periapse
-    disk_inner_radius
-    disk_outer_radius
-    disk_mass
-    n_orbiters (int): Number of masses orbiting the smbh
-    n_disk (int): Number of sph particles in the hydro disk
-    no_disk (bool): If True, no disk will be created, other disk/hydro parameters are ignored.
+    -----------
+    smbh_mass : ScalarQuantity
+        Mass of the supermassive black hole (SMBH).
+    com_orbiter_mass : ScalarQuantity
+        Total mass of the center of mass of the orbiter(s) (= the total mass of the star(s)).
+    primary_mass : ScalarQuantity
+        Mass of the primary component (only defined if orbiter is a binary).
+    secondary_mass : ScalarQuantity
+        Mass of the secondary component (only defined if orbiter is a binary).
+    outer_semimajor_axis : ScalarQuantity
+        Semi-major axis of the outer orbit (binary/single around the SMBH).
+    outer_eccentricity : float
+        Eccentricity of the outer orbit.
+    inner_semimajor_axis : ScalarQuantity
+        Semi-major axis of the inner orbit (only used if orbiter is a binary).
+    mutual_inclination : ScalarQuantity
+        Mutual inclination angle between the inner and outer orbits.
+    inner_eccentricity : float
+        Eccentricity of the inner orbit (only used if orbiter is a binary).
+    inner_arg_of_periapse : ScalarQuantity
+        Argument of periapse for the inner orbit (only used if orbiter is a binary).
+    disk_inner_radius : ScalarQuantity
+        Inner radius of the circumbinary disk.
+    disk_outer_radius : ScalarQuantity
+        Outer radius of the circumbinary disk.
+    disk_mass : ScalarQuantity
+        Total mass of the circumbinary disk.
+    n_orbiters : int
+        Number of orbiting bodies (1 for single star, 2 for binary).
+    n_disk : int
+        Number of SPH particles in the circumbinary disk.
 
     Methods
-    ------------
-
+    ----------
+    rotate_orbit():
+        Applies a rotation matrix to a particle's position and velocity.
+    make_system():
+        Creates a complete system including SMBH, orbiters, and disk.
+    make_system_no_disk():
+        Creates a system (binary/single around SMBH) without a disk.
     """
 
     def __init__(self, 
@@ -55,6 +69,36 @@ class SystemMaker:
                  disk_outer_radius:ScalarQuantity,
                  disk_mass:ScalarQuantity,
                  n_disk:int) -> None:
+        """
+        Initializes the SystemMaker object.
+
+        Parameters
+        ----------
+        smbh_mass: ScalarQuantity
+            Mass of the SMBH.
+        orbiter_mass: list
+            List of masses for the orbiters (single star or binary).
+        outer_semimajor_axis: ScalarQuantity
+            Semi-major axis of the outer orbit.
+        outer_eccentricity: float
+            Eccentricity of the outer orbit.
+        inner_semimajor_axis: ScalarQuantity
+            Semi-major axis of the binary orbit (if applicable).
+        mutual_inclination: ScalarQuantity
+            Inclination of the binary relative to the outer orbit.
+        inner_eccentricity: float
+            Eccentricity of the binary orbit.
+        inner_arg_of_periapse: ScalarQuantity
+            Argument of periapse for the binary orbit.
+        disk_inner_radius: ScalarQuantity
+            Inner radius of the circumbinary disk.
+        disk_outer_radius: ScalarQuantity
+            Outer radius of the circumbinary disk.
+        disk_mass: ScalarQuantity
+            Total mass of the circumbinary disk.
+        n_disk: int
+            Number of SPH particles in the circumbinary disk.
+        """
         
         self.smbh_mass = smbh_mass
         self.outer_semimajor_axis = outer_semimajor_axis
@@ -93,40 +137,52 @@ class SystemMaker:
     @staticmethod
     def rotation_matrix(inclination, arg_of_periapse):
         """
-        Lord forgive me, for I have used ChatGPT...
-        
-        Parameters:
-            inclination (float): Inclination angle in radians.
-            arg_of_periapse (float): Argument of periapsis in radians.
-        
-        Returns:
-            Rotation matrix
+        Constructs a rotation matrix for applying an orbital inclination and argument of periapse.
+
+        Parameters
+        ----------
+        inclination: float
+            Inclination angle in radians.
+        arg_of_periapse: float
+            Argument of periapse in radians.
+
+        Returns
+        -------
+        np.ndarray
+            Combined rotation matrix.
         """
-        
-        # Rotation matrices
         R_x = np.array([
             [1, 0, 0],
             [0, np.cos(inclination), -np.sin(inclination)],
             [0, np.sin(inclination), np.cos(inclination)]
         ])
-        
-        
         R_z = np.array([
             [np.cos(arg_of_periapse), -np.sin(arg_of_periapse), 0],
             [np.sin(arg_of_periapse), np.cos(arg_of_periapse), 0],
             [0, 0, 1]
-        ])
-
-        combined = R_x @ R_z
-        
-        return combined
+        ])       
+        return R_x @ R_z
     
 
     def rotate_orbit(self, particle, inclination, arg_of_periapse, inverse=False):
+        """
+        Rotates a particle's position and velocity using a rotation matrix which encodes
+        an inclination angle and argument of periapse.
 
+        Parameters
+        ----------
+        particle: Particle
+            Particle to rotate.
+        inclination: ScalarQuantity
+            Inclination angle.
+        arg_of_periapse: ScalarQuantity
+            Argument of periapse.
+        inverse: bool, optional
+            Whether to apply the inverse rotation. Default is False.
+        """
         matrix = self.rotation_matrix(inclination.value_in(units.rad), arg_of_periapse.value_in(units.rad))
         if inverse:
-            matrix = matrix.T
+            matrix = matrix.T  # Rotation matrices are orthogonal -> inverse = transpose
 
         particle.position = (matrix @ particle.position.value_in(units.m).T).T | units.m
         particle.velocity = (matrix @ particle.velocity.value_in(units.m / units.s).T).T | (units.m / units.s)
@@ -166,38 +222,32 @@ class SystemMaker:
     def _make_disk(self, R=1|units.AU):
         """R is needed to make Rmin and Rmax dimensionless, Sets the scale of the disk, should not be changed."""
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)  # This converter is only used here, no need to return it
-
         disk = ProtoPlanetaryDisk(self.n_disk, 
                                   convert_nbody=converter, 
                                   Rmin=self.disk_inner_radius/R, 
                                   Rmax=self.disk_outer_radius/R, 
                                   discfraction=self.disk_mass/self.com_orbiter_mass).result
-
         disk.name = 'disk'
         disk.move_to_center()
-
-        ## bisection algorithm for finding Rhalf that should work but is not necessary 
-        # half_particles = self.n_disk // 2 #always an integer
-        # Rhalf = self.disk_inner_radius.value_in(units.AU)
-        # inner_particle_keys = disk[disk.position.length().value_in(units.AU) <= Rhalf].key
-        # num_inner_particles = len(inner_particle_keys)
-
-        # while num_inner_particles != half_particles:
-        #     if num_inner_particles < half_particles:
-        #         Rhalf += 0.5 * (self.disk_outer_radius.value_in(units.AU) - Rhalf) #move halfway to outer radius 
-        #     else:
-        #         Rhalf += 0.5 * (self.disk_inner_radius.value_in(units.AU) - Rhalf) #move halfway to inner radius
-
-        #     inner_particle_keys = disk[disk.position.length().value_in(units.AU) <= Rhalf].key
-        #     num_inner_particles = len(inner_particle_keys)
-
-        # disk.inner_particle = np.isin(disk.key, inner_particle_keys)
-
         return disk
 
 
     def make_system(self, true_anomaly=0|units.rad, R=1|units.AU):
+        """
+        Creates the entire system: SMBH, orbiters (single or binary), and circumbinary disk.
 
+        Parameters
+        ----------
+        true_anomaly: ScalarQuantity
+            True anomaly of the outer orbit (just in case you'd ever want to change it).
+        R: ScalarQuantity
+            Scale radius of the disk.
+
+        Returns
+        -------
+        system: Particles
+            The complete system.
+        """
         # Might as well return the converter for the whole system here
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
 
@@ -230,57 +280,31 @@ class SystemMaker:
             smbh_and_binary.move_to_center()
 
             disk = self._make_disk(R)
-
-            # zero = Particle()
-            # zero.position = (0,0,0) | units.m
-            # zero.velocity = (0,0,0) | (units.m / units.s)
-            # zero.mass = self.primary_mass + self.secondary_mass
-
-            # fig, ax = plt.subplots()
-            # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(zero, disk, G=constants.G)
-            # ax2 = ax.twinx()
-            # ax.hist(eccs, density=True, histtype="step", cumulative=True, bins=30, label='CDF', color='blue')
-            # ax2.hist(eccs, density=True, histtype="step", bins=30, label='PDF', color='red')
-            # ax.set_ylabel('CDF', color='blue')
-            # ax2.set_ylabel('PDF', color='red')
-            # ax.set_xlabel('e')
-            # plt.title('Disk around 0 before rotation')
-            # plt.show()
-
             self.rotate_orbit(disk, self.mutual_inclination, self.inner_arg_of_periapse)  # Give disk same initial angles as binary
-
-            # fig, ax = plt.subplots()
-            # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(zero, disk, G=constants.G)
-            # ax2 = ax.twinx()
-            # ax.hist(eccs, density=True, histtype="step", cumulative=True, bins=30, label='CDF', color='blue')
-            # ax2.hist(eccs, density=True, histtype="step", bins=30, label='PDF', color='red')
-            # ax.set_ylabel('CDF', color='blue')
-            # ax2.set_ylabel('PDF', color='red')
-            # ax.set_xlabel('e')
-            # plt.title('Disk around 0 after rotation')
-            # plt.show()
-
             self.move_particles_to_com(disk, orbiter)  # Disk should be around the binary COM or single star
-
-            # fig, ax = plt.subplots()
-            # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(orbiter, disk, G=constants.G)
-            # ax2 = ax.twinx()
-            # ax.hist(eccs, density=True, histtype="step", cumulative=True, bins=30, label='CDF', color='blue')
-            # ax2.hist(eccs, density=True, histtype="step", bins=30, label='PDF', color='red')
-            # ax.set_ylabel('CDF', color='blue')
-            # ax2.set_ylabel('PDF', color='red')
-            # ax.set_xlabel('e')
-            # plt.title('Disk around binary COM after rotation')
-            # plt.show()
 
             return smbh_and_binary, disk, converter
 
         else:
-            sys.exit('If you are seeing this, something broke in initializing this class...')
+            sys.exit('self.n_orbiters is not 1 or 2, but that should have quit the code before...how did you do that?')
 
 
     def make_system_no_disk(self, true_anomaly=0|units.rad):
+        """
+        Creates the system without a circumbinary disk.
 
+        Parameters
+        ----------
+        true_anomaly: ScalarQuantity
+            True anomaly of the outer orbit (just in case you'd ever want to change it).
+        inner_true_anomaly: ScalarQuantity
+            True anomaly of the binary orbit (if applicable).
+
+        Returns
+        -------
+        system: Particles
+            The system without a disk.
+        """
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
 
         if self.n_orbiters == 1:
