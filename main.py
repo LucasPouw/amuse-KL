@@ -224,7 +224,7 @@ if __name__ == '__main__':
             inner_fraction_arr, outer_fraction_arr = [inner_fraction], [outer_fraction]
 
             # We will repeat the simulation done above for a thinner disk until the simulation can run to its end.
-            while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius >= shrink_per_it) and (sim_time.value_in(units.yr) < time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
+            while (ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius > shrink_per_it) and (sim_time.value_in(units.yr) < time_end.value_in(units.yr)):  # Break the loop if the disk cannot shrink further or when it is stable until time_end
                 
                 # Shrink the disk in total 10%, with the inner and outer disk shrinkage relative to the number of lost particles
                 ShaiHulud.disk_inner_radius += inner_fraction * shrink_per_it
