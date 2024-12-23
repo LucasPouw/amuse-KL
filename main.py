@@ -246,7 +246,8 @@ if __name__ == '__main__':
                                 hydro_timestep,
                                 gravhydro_timestep,
                                 diagnostic_timestep,
-                                time_end)
+                                time_end,
+                                args.grav_code)
                 
                 # Create folder of this new run
                 dir_current_run = args.file_dir + f'/snapshots-rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}/'
