@@ -209,17 +209,31 @@ def plot_binary_disk_arrow(axes, particle_set, lim=30):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
-    parser.add_argument('--file_dir',type=str,default='./snapshots-default/',help='Directory where HDF5 files are stored.')
-    parser.add_argument('--image_dir',type=str,default='./images-default/',help='Directory where plots will be stored.')
+    #file_dir must be a full path
+    parser.add_argument('--file_dir',type=str,default=os.getcwd(),help='Directory where HDF5 files are stored.')
+    # parser.add_argument('--image_dir',type=str,default='./images-default/',help='Directory where plots will be stored.')
     parser.add_argument('--step_size',type=int,default=100,help='Generate a plot every step_size snapshot.')
+    parser.add_argument('--no_disk', type = bool, default = False, help = 'No disk?')
     args = parser.parse_args()
 
-    if not os.path.isdir(args.image_dir):
-        os.mkdir(args.image_dir)
+    #move one up from the file_dir
+    os.chdir(args.file_dir) 
+    os.chdir('..')    
+    print(f'Moving to {os.getcwd()}')
+
+    image_tail = args.file_dir.split('/')[-2].split('-')[1:]
+    print(image_tail)
+    image_dir = 'images-' + image_tail[0] + '-' + image_tail[1] 
+    if args.no_disk:
+        image_dir += '-' + 'no_disk'
+
+    print(f'Saving images in {os.path.join(os.getcwd(),image_dir)}')
+    if not os.path.isdir(image_dir):
+        os.mkdir(image_dir)
     else:  # Empty out image directory
-        if len(os.listdir(args.image_dir)) != 0: 
-            print(f'Found existing image(s) in {args.image_dir}, removing them...')
-            files = glob.glob(args.image_dir + '/*.png')
+        if len(os.listdir(image_dir)) != 0: 
+            print(f'Found existing image(s) in {image_dir}, removing them...')
+            files = glob.glob(image_dir + '/*.png')
             for f in files:
                 os.remove(f)
 
@@ -227,11 +241,16 @@ if __name__ == '__main__':
     unsorted_datafiles = glob.glob(args.file_dir + '/*.hdf5')
     file_numbers = [filename.split('_')[-1].split('.')[0] for filename in unsorted_datafiles]
     file_numbers = list(map(int, file_numbers))
-    times, datafiles = zip(*sorted(zip(file_numbers, unsorted_datafiles)))
-    times = np.array(times) / 365  # In years
-    times = times.astype(int)  
+    _, datafiles = zip(*sorted(zip(file_numbers, unsorted_datafiles)))
+    
+    time_glob = glob.glob(os.getcwd()+f'/times-year-{image_tail[0]}*-{image_tail[1]}*.npy')
+    if isinstance(time_glob,str):
+        print('Its a string')
+        times = np.load(time_glob)
+    elif isinstance(time_glob,list):
+        print('Its a list')
+        times = np.load(time_glob[0])
 
-    # datafiles=[args.file_dir + 'snapshot_0.hdf5']
     median_incs = []
     median_eccs = []
     plot_time = []
@@ -242,36 +261,36 @@ if __name__ == '__main__':
         data = read_set_from_file(datafile)  # Full particle set at single timestep
 
         ### USE THIS FOR GETTING ECCENTRICITIES OF THE DISK ###
+        if not args.no_disk:
+            disk = data[data.name == 'disk']
+            stars = data[ np.logical_or(data.name == 'primary_star', data.name == 'secondary_star') ]
 
-        disk = data[data.name == 'disk']
-        stars = data[ np.logical_or(data.name == 'primary_star', data.name == 'secondary_star') ]
+            if len(stars) == 1:
+                com = stars
+            else:
+                com = Particle()
+                com.position = get_com(stars)
+                com.velocity = get_com_vel(stars)
+                com.mass = stars[0].mass + stars[1].mass
 
-        if len(stars) == 1:
-            com = stars
-        else:
-            com = Particle()
-            com.position = get_com(stars)
-            com.velocity = get_com_vel(stars)
-            com.mass = stars[0].mass + stars[1].mass
-
-        _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
+            _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
 
         # plt.figure()
         # plt.hist(eccs)
-        # plt.savefig(f'{args.image_dir}hist-{datafile.split('_')[-1].split('.')[0]}.png')
+        # plt.savefig(f'{image_dir}hist-{datafile.split('_')[-1].split('.')[0]}.png')
         # plt.close()
 
         ##########################################################
 
 
         ### USE THIS TO GET ECCENTRICITIES IN CASE OF GRAVITY ONLY, WHICH STILL DOES NOT SAVE THE PARTICLE NAMES ###
+        if args.no_disk:
+            primary = data[1]
+            primary.name = 'primary_star'
+            secondary = data[2]
+            secondary.name = 'secondary_star'
 
-        # primary = data[1]
-        # primary.name = 'primary_star'
-        # secondary = data[2]
-        # secondary.name = 'secondary_star'
-
-        # _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(primary, secondary, G=constants.G)  # unnecessary for loop
+            _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(primary, secondary, G=constants.G)  # unnecessary for loop
 
         ############################################################################################################
 
@@ -287,36 +306,37 @@ if __name__ == '__main__':
 
 
         ### MAKE PLOT WITH ONLY THE BINARY ###
+        if args.no_disk:
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 9.5))
+            plot_stars(np.array([ax1, ax2, ax3]), data, lim=5)
+            plot_inc_ecc(ax4, 
+                        plot_time | units.yr, 
+                        median_incs | units.deg,
+                        median_eccs)
+            fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
+            plt.tight_layout()
+            # ax4.set_aspect('equal')
 
-        # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 9.5))
-        # plot_stars(np.array([ax1, ax2, ax3]), data, lim=5)
-        # plot_inc_ecc(ax4, 
-        #              plot_time | units.yr, 
-        #              median_incs | units.deg,
-        #              median_eccs)
-        # fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
-        # plt.tight_layout()
-        # # ax4.set_aspect('equal')
-
-        # fig.savefig(f'{args.image_dir}binary-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
-        # plt.close()
+            fig.savefig(f'{image_dir}/binary-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+            plt.close()
 
         #########################################
 
         ### MAKE PLOT WITH BINARY + DISK + ARROW ###
-            
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,10))
-        plot_binary_disk_arrow(np.array([ax1, ax2, ax3]), data)
-        plot_inc_ecc(ax4, 
-                     plot_time | units.yr, 
-                     median_incs | units.deg,
-                     median_eccs)
-        fig.suptitle(f'Time = {time} year', fontsize=BIGGER_SIZE)
-        plt.tight_layout()
-        # ax4.set_aspect('equal')
+        if not args.no_disk:
 
-        fig.savefig(f'{args.image_dir}/binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
-        plt.close()
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,10))
+            plot_binary_disk_arrow(np.array([ax1, ax2, ax3]), data)
+            plot_inc_ecc(ax4, 
+                        plot_time | units.yr, 
+                        median_incs | units.deg,
+                        median_eccs)
+            fig.suptitle(f'Time = {time} year', fontsize=BIGGER_SIZE)
+            plt.tight_layout()
+            # ax4.set_aspect('equal')
+
+            fig.savefig(f'{image_dir}/binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+            plt.close()
 
         #########################################
         
@@ -330,5 +350,5 @@ if __name__ == '__main__':
         # fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
         # plt.tight_layout()
 
-        # fig.savefig(f'{args.image_dir}smbh-and-stars-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        # fig.savefig(f'{image_dir}smbh-and-stars-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
         # plt.close()
