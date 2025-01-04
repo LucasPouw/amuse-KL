@@ -88,6 +88,28 @@ def plot_inc_ecc(ax, time, inc, ecc):
     return
 
 
+def plot_ang_ecc(ax, time, inc, asc, peri, ecc):
+
+    ecc_ax = ax
+    ang_ax = ax.twinx()
+
+    ecc_ax.plot(time.value_in(units.yr), ecc, color='red', label=r'$e$')
+    plt.plot(time.value_in(units.yr), inc.value_in(units.deg), color='blue', linestyle='solid', label=r'$\iota$')
+    plt.plot(time.value_in(units.yr), asc.value_in(units.deg), color='blue', linestyle='dotted', label=r'$\Omega$')
+    plt.plot(time.value_in(units.yr), peri.value_in(units.deg), color='blue', linestyle='dashed', label=r'$\omega$')
+
+    ecc_ax.set_xlabel('Time [yr]')
+    ecc_ax.set_ylabel('Eccentricity', color='red')
+    ecc_ax.tick_params(axis='y', labelcolor='red')
+    ecc_ax.set_ylim(0,1)
+
+    ang_ax.set_ylabel('Angle [deg]', color='blue')
+    ang_ax.tick_params(axis='y', labelcolor='blue')
+    ang_ax.set_ylim(-180, 180)
+    plt.legend(loc='upper left', bbox_to_anchor=(1,0))
+    return
+
+
 def plot_smbh_and_stars(axes, particle_set, lim=10):
 
     """
@@ -162,7 +184,7 @@ def plot_stars(axes, particle_set, lim=3):
     return
 
 
-def plot_binary_disk_arrow(axes, particle_set, lim=30):
+def plot_binary_disk_arrow(axes, particle_set, lim=20):
 
     "Requires axes to be a shape-(3,) array"
 
@@ -171,7 +193,10 @@ def plot_binary_disk_arrow(axes, particle_set, lim=30):
     particle_set.position -= particle_set[particle_set.name == 'primary_star'].position  # Center on primary
 
     disk = particle_set[particle_set.name == 'disk']
-    sph_pos = (disk.position.number / np.abs(disk.position.number).max()) / 2 + 0.5  # Get rgb = xyz color on disk
+    sph_pos = (disk.position.value_in(units.AU) / lim) / 2 + 0.5  # Get rgb = xyz color on disk normalized on furthest bound particle
+    sph_pos[np.any(sph_pos > 1, axis=1)] = 0
+    sph_pos[np.any(sph_pos < 0, axis=1)] = 0
+
     ax_xy.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=sph_pos)
     ax_yz.scatter(disk.y.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
     ax_xz.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
@@ -222,7 +247,6 @@ if __name__ == '__main__':
     print(f'Moving to {os.getcwd()}')
 
     image_tail = args.file_dir.split('/')[-2].split('-')[1:]
-    print(image_tail)
     image_dir = 'images-' + image_tail[0] + '-' + image_tail[1] 
     if args.no_disk:
         image_dir += '-' + 'no_disk'
@@ -243,15 +267,20 @@ if __name__ == '__main__':
     file_numbers = list(map(int, file_numbers))
     _, datafiles = zip(*sorted(zip(file_numbers, unsorted_datafiles)))
     
-    time_glob = glob.glob(os.getcwd()+f'/times-year-{image_tail[0]}*-{image_tail[1]}*.npy')
-    if isinstance(time_glob,str):
-        print('Its a string')
-        times = np.load(time_glob)
-    elif isinstance(time_glob,list):
-        print('Its a list')
-        times = np.load(time_glob[0])
+    try:
+        time_glob = glob.glob(os.getcwd()+f'/times-year-{image_tail[0][4:]}*-{image_tail[1][4:]}*.npy')[0]  # Requires the run to have succeeded such that a time array exists
+        times = np.load(time_glob, allow_pickle=True)
+        try:  # Check if there are units to remove
+            times = [int(time.value_in(units.yr)) for time in times]  
+        except:
+            pass
+    except:
+        print('\nWARNING: EXCEPTION RAISED IN IMPORTING TIMES\n')
+        times = np.arange(len(datafiles))
 
     median_incs = []
+    median_ascs = []
+    median_peris = []
     median_eccs = []
     plot_time = []
     n_bound_list = []
@@ -273,7 +302,7 @@ if __name__ == '__main__':
                 com.velocity = get_com_vel(stars)
                 com.mass = stars[0].mass + stars[1].mass
 
-            _, _, _, eccs, _, incs, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
+            _, _, _, eccs, _, incs, ascs, peris = get_orbital_elements_from_binaries(com, disk, G=constants.G)
 
         # plt.figure()
         # plt.hist(eccs)
@@ -297,13 +326,17 @@ if __name__ == '__main__':
         bound = eccs < 1
         bound_eccs = eccs[bound]
         bound_incs = incs[bound]
+        bound_ascs = ascs[bound]
+        bound_peris = peris[bound]
         n_bound = np.sum(bound)
 
-        median_incs.append(np.median(incs.value_in(units.deg)))
-        median_eccs.append(np.median(eccs))
+        median_incs.append(np.median(bound_incs.value_in(units.deg)))
+        median_ascs.append(np.median(bound_ascs.value_in(units.deg)))
+        median_peris.append(np.median(bound_peris.value_in(units.deg)))
+    
+        median_eccs.append(np.median(bound_eccs))
         plot_time.append(time)
         n_bound_list.append(n_bound)
-
 
         ### MAKE PLOT WITH ONLY THE BINARY ###
         if args.no_disk:
@@ -317,7 +350,7 @@ if __name__ == '__main__':
             plt.tight_layout()
             # ax4.set_aspect('equal')
 
-            fig.savefig(f'{image_dir}/binary-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+            fig.savefig(f"{image_dir}/binary-{datafile.split('_')[-1].split('.')[0]}.png", bbox_inches='tight')
             plt.close()
 
         #########################################
@@ -327,15 +360,17 @@ if __name__ == '__main__':
 
             fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,10))
             plot_binary_disk_arrow(np.array([ax1, ax2, ax3]), data)
-            plot_inc_ecc(ax4, 
+            plot_ang_ecc(ax4, 
                         plot_time | units.yr, 
                         median_incs | units.deg,
+                        median_ascs | units.deg,
+                        median_peris | units.deg,
                         median_eccs)
             fig.suptitle(f'Time = {time} year', fontsize=BIGGER_SIZE)
             plt.tight_layout()
             # ax4.set_aspect('equal')
 
-            fig.savefig(f'{image_dir}/binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+            fig.savefig(f"{image_dir}/binary-with-arrow-{datafile.split('_')[-1].split('.')[0]}.png", bbox_inches='tight')
             plt.close()
 
         #########################################
@@ -350,5 +385,5 @@ if __name__ == '__main__':
         # fig.suptitle(f'Time = {time:.0f} year', fontsize=BIGGER_SIZE)
         # plt.tight_layout()
 
-        # fig.savefig(f'{image_dir}smbh-and-stars-{datafile.split('_')[-1].split('.')[0]}.png', bbox_inches='tight')
+        # fig.savefig(f"{image_dir}smbh-and-stars-{datafile.split('_')[-1].split('.')[0]}.png", bbox_inches='tight')
         # plt.close()
