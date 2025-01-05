@@ -267,10 +267,10 @@ if __name__ == '__main__':
                 inner_fraction, outer_fraction = N_lost_inner / total_unbound_cases, N_lost_outer / total_unbound_cases
 
                 Rhalf_array = runner.Rhalf_values
-                Rhalf_filepath = os.path.join(args.file_dir,f'Rhalf_rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
+                Rhalf_filepath = os.path.join(args.file_dir,f'Rhalf_{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
                 np.save(Rhalf_filepath,Rhalf_array)
 
-                Nbound_filepath = os.path.join(args.file_dir,f'Nbound_rmin{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-rmax{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
+                Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
                 np.save(Nbound_filepath, N_bound_over_time)
                 
                 #Saving fractions across runs
