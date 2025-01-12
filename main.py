@@ -74,7 +74,7 @@ if __name__ == '__main__':
     if name == '':
         name = 'default'
     else:
-        name = name[:-1]  # Remove extra dash
+        name = name[:-1]  # Remove superfluous dash at the end
 
     args.file_dir += '/amuseKL-output/'
     print(f'All output is saved in: {args.file_dir}')
@@ -91,14 +91,12 @@ if __name__ == '__main__':
         inp = None
         while inp not in ['y', 'n']:
             inp = input(f'Directory {args.file_dir} already exists. Do you want to erase the existing files? (y/n)')
-        if inp == 'y':
+        if inp.lower() == 'y':
             print('Erasing...')
             shutil.rmtree(args.file_dir)
             os.mkdir(args.file_dir)
-        elif inp == 'n':
-            sys.exit('Exiting...')
         else:
-            print('Bruh...')
+            sys.exit('Exiting...')
 
     #Adding units to arguments where relevant
     smbh_mass = args.m_smbh | units.Msun
@@ -135,6 +133,7 @@ if __name__ == '__main__':
                             disk_mass,
                             args.n_disk)  # Shai Hulud is the Maker
 
+    # Returning terminal output specifiying what kind of run is being performed
     if args.no_disk:
         print('Initializing system WITHOUT disk...\n')
         smbh_and_binary, converter = ShaiHulud.make_system_no_disk()
@@ -174,6 +173,7 @@ if __name__ == '__main__':
             os.mkdir(dir_current_run)
             grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run)
 
+            # Save relevant data for later analysis
             np.save(args.file_dir + f'/grav-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', grav_energy.value_in(units.J))
             np.save(args.file_dir + f'/hydro-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', hydro_energy.value_in(units.J))
             np.save(args.file_dir + f'/times-year-rmin{args.r_min}-rmax{args.r_max}.npy', times.value_in(units.yr))
