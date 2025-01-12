@@ -12,7 +12,7 @@ import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particles, Particle
 from amuse.units.quantities import Quantity, ScalarQuantity, VectorQuantity
-from tqdm import tqdm
+from tqdm import tqdm   
 import matplotlib as mpl
 
 # Move working directory one directory upwards (if running from the repo) to avoid saving anything in the github repo
