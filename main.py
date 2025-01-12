@@ -1,3 +1,6 @@
+## Made by Lucas Pouw, Yannick Badoux and Tim van der Vuurst for the 
+## course "Simulations and Modeling in Astrophysics" '24-'25. 
+
 import os
 from make_system import SystemMaker
 from run_sims import SimulationRunner
@@ -171,7 +174,7 @@ if __name__ == '__main__':
             print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
-            grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run)
+            grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run) # Run code
 
             # Save relevant data for later analysis
             np.save(args.file_dir + f'/grav-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', grav_energy.value_in(units.J))
@@ -182,10 +185,11 @@ if __name__ == '__main__':
 
             print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
 
-            # Since we do several runs now, save all relevant data in a folder pertaining to the simulation in question
+            # Since we do several runs now, save snapshots in a folder pertaining to the simulation in question
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
             
+            # Run code with additional stopping condition
             N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
             
             # Save energy and time information from the simulation in .npy files for later analysis
@@ -210,7 +214,7 @@ if __name__ == '__main__':
             print()
             print(f'Bound fraction: {bound_fraction:.3f}, inward fraction: {inner_fraction:.3f}, outward fraction: {outer_fraction:.3f}.')
 
-            # Define parameters for shrinking the disk. We hardcode the shrink percentage to 10%. 
+            # Define parameters for shrinking the disk. We set the shrink percentage to 10% of the initial disk. 
             # Stopping condition may not have been reached in this first run, so only print that it has when relevant
             shrink_percentage = 0.1
             initial_disk_width = outer_radius - inner_radius
@@ -218,7 +222,7 @@ if __name__ == '__main__':
             if (sim_time.value_in(units.yr) < time_end.value_in(units.yr)):
                 print(f'Shrinking the disk width by {shrink_percentage * 100}% each iteration, which is {shrink_per_it.value_in(units.AU):.3f} AU.')
             
-            #Creating lists of outer/inner radii and lost fraction to save across runs
+            # Creating lists of outer/inner radii and lost fraction to save across runs
             outer_radii = [ShaiHulud.disk_outer_radius.value_in(units.AU)]
             inner_radii = [ShaiHulud.disk_inner_radius.value_in(units.AU)]
             inner_fraction_arr, outer_fraction_arr = [inner_fraction], [outer_fraction]
@@ -272,16 +276,11 @@ if __name__ == '__main__':
 
                 Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU):.3f}-{ShaiHulud.disk_outer_radius.value_in(units.AU):.3f}.npy')
                 np.save(Nbound_filepath, N_bound_over_time)
-                
-                #Saving fractions across runs
-                inner_fraction_arr.append(inner_fraction)
-                outer_fraction_arr.append(outer_fraction)
-
             
                 print(f'Bound fraction: {bound_fraction:.3f}, inward fraction: {inner_fraction:.3f}, outward fraction: {outer_fraction:.3f}.')
                 print()
             
-            #Some diagnostic output to show after a simulation has run until t_end
+            # Some diagnostic output to show after a simulation has run until t_end
             print('\n--------------------------- FINAL STOPPING CONDITION REACHED ---------------------------\n')
             print(f'Simulation time is t = {sim_time.value_in(units.yr):.2E} yr. Stopping condition was {time_end.value_in(units.yr):.2E} yr.')
             print(f'Final disk width is {(ShaiHulud.disk_outer_radius - ShaiHulud.disk_inner_radius).value_in(units.AU):.3f} AU. Stopping condition was {shrink_per_it.value_in(units.AU):.3f} AU.')
