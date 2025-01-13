@@ -394,15 +394,9 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
 
 
 if __name__ == '__main__':
-    ##TODO: 
-    ## change to parser or input somehow
-    ## best to do is find out where files such as these are made and saved and make sure its all in the same dir so only 
-    ## one argument can scrape them all with a function (see below, already exists)
-
     parser = argparse.ArgumentParser(description='Analyze data gathered from simulations. Works for either a single run'+ 
                                      ' or for a directory of runs.')
     parser.add_argument('--root_folder', type = str, default='/data2/AMUSE-KL-vdvuurst-pouw-badoux/', help='Directory in which simulation output is stored.', required = True)
-    # parser.add_argument('--single_run', type = bool, default = True, help = 'Controls whether given root holds data of a single run or of various runs.', required = True)
     parser.add_argument('--plot_KL_effect', type = bool, default = False, help = 'Controls whether to run the code that plots the KL effect on orbital elements. WARNING: takes a long time to run.')
     parser.add_argument('--plot_plateau_hist', type = bool, default = False, help = 'Controls whether to run the code that plots the histogram of bound particle plateaus.')
     parser.add_argument('--plot_run_analysis', type = bool, default = True, help = 'Controls whether to run the code that plots the general 2x2 subplot figure of run diagnostics, bound disk particles and half-mass width of the disk.')

@@ -46,7 +46,7 @@ def get_parser():
     parser.add_argument('--e_in',       type=float, default=0.45,           help='Eccentricity of the binary orbit')
     parser.add_argument('--i_mut',      type=float, default=102.55,         help='Mutual inclination of the inner and outer orbits in deg')
     parser.add_argument('--peri',       type=float, default=311.75,         help='Argument of periapse of the inner orbit in deg')
-    parser.add_argument('--r_min',      type=float, default=6.55,           help='Inner radius of the hydro disk in AU')
+    parser.add_argument('--r_min',      type=float, default=4.45,           help='Inner radius of the hydro disk in AU')
     parser.add_argument('--r_max',      type=float, default=13.35,          help='Outer radius of the hydro disk in AU')
     parser.add_argument('--m_disk',     type=float, default=1.6e-6,         help='Hydro disk mass in solar masses')
     parser.add_argument('--n_disk',     type=int,   default=int(1e3),       help='Number of sph particles in the hydro disk')
@@ -174,12 +174,22 @@ if __name__ == '__main__':
             print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
-            grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run) # Run code
+            # grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run) # Run code
+            N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
 
             # Save relevant data for later analysis
             np.save(args.file_dir + f'/grav-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', grav_energy.value_in(units.J))
             np.save(args.file_dir + f'/hydro-energy-joules-rmin{args.r_min}-rmax{args.r_max}.npy', hydro_energy.value_in(units.J))
             np.save(args.file_dir + f'/times-year-rmin{args.r_min}-rmax{args.r_max}.npy', times.value_in(units.yr))
+            
+            # Extract array of half particle radii over time and save
+            Rhalf_array = runner.Rhalf_values
+            Rhalf_filepath = os.path.join(args.file_dir, f'Rhalf_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
+            np.save(Rhalf_filepath, Rhalf_array)
+
+            # Also save N_bound_over_time for later data processing
+            Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
+            np.save(Nbound_filepath, N_bound_over_time)
 
         else: # Run with additional stopping condition
 
