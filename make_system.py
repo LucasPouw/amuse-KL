@@ -1,5 +1,8 @@
+## Made by Lucas Pouw, Yannick Badoux and Tim van der Vuurst for the 
+## course "Simulations and Modeling in Astrophysics" '24-'25. 
+
 import sys
-from amuse.units.quantities import ScalarQuantity
+from amuse.units.quantities import ScalarQuantity, Quantity
 from amuse.units import units
 from amuse.lab import Particles
 from amuse.ext.orbital_elements import generate_binaries
@@ -114,15 +117,18 @@ class SystemMaker:
 
         self.n_orbiters = len(orbiter_mass)
 
+        # Binary case
         if self.n_orbiters == 2:
             self.primary_mass, self.secondary_mass = orbiter_mass
             self.com_orbiter_mass = self.primary_mass + self.secondary_mass + self.disk_mass
             print('Initializing a binary around a black hole.')
-    
+        
+        # Single star case
         elif self.n_orbiters == 1:
             self.com_orbiter_mass = orbiter_mass[0] + self.disk_mass
             print('Initializing a single star around a black hole.')
 
+        # Other cases not supported
         else:
             sys.exit(f'Detected {len(orbiter_mass)} masses to orbit the SMBH. \
                        This code currently only supports 1 or 2 orbiters. Quitting.')
@@ -130,6 +136,7 @@ class SystemMaker:
 
     @staticmethod
     def move_particles_to_com(particles, com):
+        # Simple static function to move a given Particle set to its center of mass (COM) frame
         particles.position += com.position
         particles.velocity += com.velocity
 
@@ -174,9 +181,9 @@ class SystemMaker:
         particle: Particle
             Particle to rotate.
         inclination: ScalarQuantity
-            Inclination angle.
+            Inclination angle. Should be given with units of radians.
         arg_of_periapse: ScalarQuantity
-            Argument of periapse.
+            Argument of periapse. Should be given with units of radians.
         inverse: bool, optional
             Whether to apply the inverse rotation. Default is False.
         """
@@ -189,6 +196,17 @@ class SystemMaker:
 
 
     def _make_smbh_and_orbiter(self, true_anomaly=0|units.rad):
+        """ Helper function to initialize the SMBH with an orbiter around it, the orbiter being our binary (or single)
+            star and disk system treated as a single object for now. 
+
+        Args:
+            true_anomaly (ScalarQuantity): The true anomaly of the orbit, should be given with units of radians. 
+                                           Defaults to 0 | units.rad.
+
+        Returns:
+            orbiter (Particle): Particle in orbit around the SMBH
+            smbh (Particle): The SMBH around which orbiter is in orbit.
+        """
         orbiter, smbh = generate_binaries(self.com_orbiter_mass,
                                           self.smbh_mass,
                                           self.outer_semimajor_axis,
@@ -200,6 +218,15 @@ class SystemMaker:
     
 
     def _make_binary(self, true_anomaly=0|units.rad):
+        """Helper function to generate the stellar binary.
+
+        Args:
+            true_anomaly (ScalarQuantity, optional): The true anomaly of the orbit, should be given with units.rad. Defaults to 0 | units.rad.
+
+        Returns:
+            primary (Particle): Particle of the primary star, e.g. with the highest mass.
+            secondary (Particle): Particle of the secondary star, e.g. with the lowest mass.
+        """
         primary, secondary = generate_binaries(self.primary_mass, 
                                                self.secondary_mass, 
                                                self.inner_semimajor_axis, 
@@ -207,20 +234,23 @@ class SystemMaker:
                                                true_anomaly=true_anomaly,
                                                argument_of_periapsis=self.inner_arg_of_periapse,
                                                inclination=self.mutual_inclination)
+        
         primary.name = 'primary_star'
         secondary.name = 'secondary_star'
         
-        ### YOU CAN CHECK THAT THIS UNDOES THE ANGLES OF THE BINARY AS VERIFICATION OF THE ROTATION MATRICES ###
-
-        # rotate_orbit(primary, self.mutual_inclination, self.inner_arg_of_periapse, inverse=True)
-        # rotate_orbit(secondary, self.mutual_inclination, self.inner_arg_of_periapse, inverse=True)
-
-        ########################################################################################################
-        
         return primary, secondary
     
-    def _make_disk(self, R=1|units.AU):
-        """R is needed to make Rmin and Rmax dimensionless, Sets the scale of the disk, should not be changed."""
+    def _make_disk(self, R = 1 | units.AU ):
+        """ Helper function that creates the hydrodynamical disk.
+            R is needed to make Rmin and Rmax dimensionless, Sets the scale of the disk, should in essence not be changed.
+
+        Args:
+            R (ScalarQuantity, optional): Scale radius of the disk.
+
+
+        Returns:
+            Particles: Particle set of the centered disk (consisting of SPH particles)
+        """
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass, R)  # This converter is only used here, no need to return it
         disk = ProtoPlanetaryDisk(self.n_disk, 
                                   convert_nbody=converter, 
@@ -234,7 +264,8 @@ class SystemMaker:
 
     def make_system(self, true_anomaly=0|units.rad, R=1|units.AU):
         """
-        Creates the entire system: SMBH, orbiters (single or binary), and circumbinary disk.
+        Creates the entire system: SMBH, orbiters (single or binary), and circumbinary disk using the above
+        helper functions.
 
         Parameters
         ----------
@@ -248,10 +279,9 @@ class SystemMaker:
         system: Particles
             The complete system.
         """
-        # Might as well return the converter for the whole system here
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
 
-        if self.n_orbiters == 1:
+        if self.n_orbiters == 1: # Single star system case
 
             orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
 
@@ -266,7 +296,7 @@ class SystemMaker:
 
             return smbh_and_orbiter, disk, converter
             
-        elif self.n_orbiters == 2:
+        elif self.n_orbiters == 2: # Binary case
 
             orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
             primary, secondary = self._make_binary(true_anomaly)
@@ -285,8 +315,6 @@ class SystemMaker:
 
             return smbh_and_binary, disk, converter
 
-        else:
-            sys.exit('self.n_orbiters is not 1 or 2, but that should have quit the code before...how did you do that?')
 
 
     def make_system_no_disk(self, true_anomaly=0|units.rad):
@@ -307,7 +335,7 @@ class SystemMaker:
         """
         converter = nbody_system.nbody_to_si(self.com_orbiter_mass + self.smbh_mass, self.outer_semimajor_axis)
 
-        if self.n_orbiters == 1:
+        if self.n_orbiters == 1: # Single star case
 
             orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
 
@@ -318,7 +346,7 @@ class SystemMaker:
 
             return smbh_and_orbiter, converter
             
-        elif self.n_orbiters == 2:
+        elif self.n_orbiters == 2: # Binary case
 
             orbiter, smbh = self._make_smbh_and_orbiter(true_anomaly)
             primary, secondary = self._make_binary(true_anomaly)

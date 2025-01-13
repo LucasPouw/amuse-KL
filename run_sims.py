@@ -1,3 +1,6 @@
+## Made by Lucas Pouw, Yannick Badoux and Tim van der Vuurst for the 
+## course "Simulations and Modeling in Astrophysics" '24-'25. 
+
 from amuse.community.fi.interface import Fi
 from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
@@ -9,13 +12,13 @@ from amuse.io import write_set_to_file
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particle
 import numpy as np
-
 from plotter import get_com, get_com_vel
 
 
 class SimulationRunner():
     """
-    Class for running a bridged hydrodynamics + gravity simulation.
+    Class for running a bridged hydrodynamics + gravity simulation of a SPH disk around a binary (or single) star system which itself
+    is in orbit around a SMBH.
 
     Attributes:
     -------------
@@ -86,24 +89,21 @@ class SimulationRunner():
                 self.gravity_code = Huayno
             case 'Hermite':
                 self.gravity_code = Hermite
-            case 'HermiteGRX':
-                self.gravity_code = HermiteGRX
+
             case _:
-                raise ValueError("Given gravity code is not allowed, please specify either Huayno, Hermite or HermiteGRX.")
+                raise ValueError("Given gravity code is not allowed, please specify either 'Huayno' or 'Hermite'.")
     
     def _initialize_gravity(self):
         """
-        Initialize the gravitational N-body code (Huayno).
+        Initialize the specified gravitational N-body code.
 
         Returns:
         ---------
-        Huayno instance with initialized parameters.
+        Gravity instance with initialized parameters.
         """
         gravity = self.gravity_code(self.converter)
-        if self.gravity_string == 'Huayno':
+        if self.gravity_string == 'Huayno': #Huayno requires an extra argument
             gravity.set_integrator('OK')
-        elif self.gravity_string == 'HermiteGRX':
-            gravity.parameters.perturbation = '1PN_Pairwise'
 
         return gravity
         
@@ -129,7 +129,7 @@ class SimulationRunner():
 
         Parameters:
         -------------
-        gravity : Huayno
+        gravity : Huayno or Hermite
             Gravity code.
         hydro : Fi
             Hydrodynamics code.
@@ -152,7 +152,7 @@ class SimulationRunner():
         Returns:
         ---------
         tuple:
-            - gravity (Huayno): Gravity code.
+            - gravity (Huayno or Hermite): Gravity code.
             - hydro (Fi): Hydrodynamics code.
             - gravhydro (Bridge): Coupled gravity-hydro code.
             - channel (dict): Channels for updating the combined particle set.
@@ -165,15 +165,8 @@ class SimulationRunner():
         if self.gravity_string in ['Huayno','Hermite']:
             gravity.particles.add_particles(bodies)
 
-        elif self.gravity_string == 'HermiteGRX': #HermiteGRX needs spatial extent of bodies
-            SagA_radius = (2 * constants.G * (4.5 * 1e6 | units.MSun) / (constants.c)**2).in_(units.km) #Schwarzschild radius of Sag A*, mass from https://iopscience.iop.org/article/10.1086/592738
-            D9a_radius = 2 | units.Rsun #from https://www.nature.com/articles/s41467-024-54748-3#Sec1
-            D9b_radius = (0.73)**0.56 * (1/2.8)**0.79 * D9a_radius #scaling relation from Kippenhahn R., Weigert A., 1990, Stellar Structure and Evolution
-            bodies.radius = [SagA_radius,D9a_radius,D9b_radius] 
-            gravity.particles.add_particles(bodies)
-        
-        else:
-            raise ValueError("How did this happen?")
+        else: # This should never be called due to the catch in self.__init__, but better safe than sorry
+            raise ValueError("Invalid gravity code passed. Please specify either 'Huayno' or 'Hermite'.")
 
         channel = {"from stars": bodies.new_channel_to(gravity.particles),
                     "to_stars": gravity.particles.new_channel_to(bodies)}
@@ -193,7 +186,7 @@ class SimulationRunner():
 
     def run_gravity_hydro_bridge(self, save_folder):
         """
-        Run the gravity-hydro simulation until the specified end time.
+        Run the gravity-hydro simulation until the specified end time without additional stopping conditions.
 
         Parameters:
         -------------
@@ -220,11 +213,11 @@ class SimulationRunner():
         model_time = 0 | units.Myr
         times.append(model_time)
 
-        #controls the printing in the terminal, could be a function argument but hardcoded for laziness
+        #controls the printing in the terminal
         self.verbose_timestep = 10 * self.diagnostic_timestep
 
         write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
-        while (model_time < self.time_end):
+        while (model_time < self.time_end): # Stopping condition is only pre-specified simulation endtime
 
             model_time += self.diagnostic_timestep
 
@@ -236,8 +229,9 @@ class SimulationRunner():
             grav_energy.append(gravity.get_total_energy())
             hydro_energy.append(hydro.get_total_energy())
             times.append(model_time)
-
-            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
+            
+            # So as not to clutter up the terminal too much
+            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)): 
                 print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
             
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
@@ -256,8 +250,6 @@ class SimulationRunner():
         so the particles have had max. 1 yr travel time (usually outwards) before we classify them. This 
         could give a slight bias to outwards particles.
 
-        There is some redundancy in already_unbound and unbound_dict, but who cares.
-
         Parameters:
         -------------
         particle_system : amuse.lab.Particles
@@ -271,8 +263,8 @@ class SimulationRunner():
             - num_inner_unbound (int): Number of newly unbound inner particles corrected for rebounding.
             - num_outer_unbound (int): Number of newly unbound outer particles corrected for rebounding.
         """
-        # particle_system is always bodies as returned by self._initialize_code but to avoid confusion 
-        # it is called particle_system here
+        # Particle_system is always bodies as returned by self._initialize_code,
+        # but to avoid confusion it is called particle_system here
         disk = particle_system[particle_system.name == 'disk'].copy()
         stars = particle_system[np.logical_or(particle_system.name == 'primary_star', particle_system.name == 'secondary_star')].copy()
 
@@ -284,31 +276,33 @@ class SimulationRunner():
         for star in stars: # Works for both single and double star
             com.mass += star.mass 
         _, _, _, eccs, _, _, _, _ = get_orbital_elements_from_binaries(com, disk, G=constants.G)
-        bound = eccs < 1
+        bound = eccs < 1 # Define bound condition
 
         # Move disk to COM frame and isolate bound particles to define half particle radius
         disk.position -= com.position
         bound_disk_particles = disk[bound]
 
         N_bound = np.sum(bound)
-        Nhalf = N_bound // 2      
+        Nhalf = N_bound // 2  # Half the total number of bound particles, rounded to integer so it can be used as indexer    
 
         bound_Rs = np.sort(np.linalg.norm(bound_disk_particles.position.value_in(units.AU), axis=1))
-        Rhalf = (bound_Rs[Nhalf - 1] + bound_Rs[Nhalf]) / 2 # Halfway between the largest inner particle radius en smallest outer particle radius
+        Rhalf = (bound_Rs[Nhalf - 1] + bound_Rs[Nhalf]) / 2 # Halfway between the largest inner particle radius and smallest outer particle radius
         self.Rhalf_values.append(Rhalf)
 
+        # Save whether a particle is inner as a boolean in the particle set
         disk.is_inner = np.linalg.norm(disk.position.value_in(units.AU), axis=1) < Rhalf
-        bound_disk_particles = disk[bound] #redefine so is_inner exists
+        bound_disk_particles = disk[bound] # Redefine so is_inner attribute exists in the particle set
         unbound_disk_particles = disk[np.invert(bound)]
 
-        for key in unbound_disk_particles.key:  # Make a dictionary that saves the inner/outer classification at time of unbounding
+        # Make a dictionary that saves the inner/outer classification at time of unbounding
+        for key in unbound_disk_particles.key: 
             if key not in self.unbound_dict.keys():
                 self.unbound_dict[key] = unbound_disk_particles[unbound_disk_particles.key == key].is_inner.astype(bool)
 
         # Particles may get rebound
         rebounded = bound_disk_particles[np.isin(bound_disk_particles.key, self.already_unbound)].key
 
-        # Remove those particles from already_unbound and compensate for them in the counting
+        # Remove rebounded particles from already_unbound and compensate for them in the counting
         n_inner_rebound = 0
         n_outer_rebound = 0
         if len(rebounded) > 0:
@@ -320,7 +314,7 @@ class SimulationRunner():
                 elif self.unbound_dict[key] == False:  # i.e. an outer particle got rebound
                     n_outer_rebound += 1
                 else:
-                    print(self.unbound_dict[key], 'Value not True or False, how did you do that?')
+                    print(self.unbound_dict[key], 'is_inner value non-boolean. Something is going wrong, consider aborting code.')
 
                 self.unbound_dict.pop(key)
         
@@ -336,12 +330,11 @@ class SimulationRunner():
         return N_bound, len(unbound_disk_particles), num_inner_unbound, num_outer_unbound
     
 
-    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init):  # (TODO: N_init is also len(self.disk), but maybe don't bother)
+    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init):
         """
-        Runs the gravity-hydro simulation with a stopping condition based on the number of bound particles (or end time).
-
-        Rmin and Rmax should be specified here since they matter to the stopping condition N_init is needed since we need 
-        to know how many disk particles we start with and we return the relative bound fractions 
+        Runs the gravity-hydro simulation until specified end-time or until an additional stopping condition is reached.
+        The additional stopping condition is defined as that the code will stop as soon as at least half the particles of the disk
+        become unbounded.
 
         Parameters:
         -------------
@@ -420,7 +413,7 @@ class SimulationRunner():
 
     def run_gravity_no_disk(self, save_folder):
         """
-        Run the gravity-only simulation (no disk) until the end time.
+        Run the gravity-only simulation (no disk) until the specified end time.
 
         This method evolves only the SMBH and binary orbiter system under gravitational interaction,
         without including the disk particles.
@@ -443,15 +436,8 @@ class SimulationRunner():
         if self.gravity_string in ['Huayno','Hermite']:
             gravity.particles.add_particles(bodies)
 
-        elif self.gravity_string == 'HermiteGRX': #HermiteGRX needs spatial extent of bodies
-            SagA_radius = (2 * constants.G * (4.5 * 1e6 | units.MSun) / (constants.c)**2).in_(units.km) #Schwarzschild radius of Sag A*, mass from https://iopscience.iop.org/article/10.1086/592738
-            D9a_radius = 2 | units.Rsun #from https://www.nature.com/articles/s41467-024-54748-3#Sec1
-            D9b_radius = (0.73)**0.56 * (1/2.8)**0.79 * D9a_radius #scaling relation from Kippenhahn R., Weigert A., 1990, Stellar Structure and Evolution
-            bodies.radius = [SagA_radius,D9a_radius,D9b_radius] 
-            gravity.particles.add_particles(bodies)
-        
-        else:
-            raise ValueError("How did this happen?")
+        else: # This should never be called due to the catch in self.__init__, but better safe than sorry
+            raise ValueError("Invalid gravity code passed. Please specify either 'Huayno' or 'Hermite'.")
         
         channel = gravity.particles.new_channel_to(bodies)
 
@@ -465,7 +451,7 @@ class SimulationRunner():
 
         write_set_to_file(gravity.particles, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
-        # controls the printing in the terminal, could be a function argument but hardcoded for laziness
+        # controls the printing in the terminal
         self.verbose_timestep = 100 * self.diagnostic_timestep
 
         while model_time < self.time_end:
