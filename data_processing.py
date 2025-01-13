@@ -143,16 +143,16 @@ def get_rmin_rmax_from_run(root):
         rmax = 13.35 #default value
     elif 'r_max' in info_strings and 'r_min' not in info_strings:
         rmax = float(info_strings[np.where(np.array(info_strings) == 'r_max')[0][0] + 1])
-        rmin = 6.55 #default vlaue
+        rmin = 4.45 #default vlaue
     else:
         #defaults
-        rmin = 6.55
+        rmin = 4.45
         rmax = 13.35
     
     return rmin, rmax
 
 
-def process_run(root: str,savedir : str | None = None) -> None:
+def nbound_plot(root: str,savedir : str | None = None) -> None:
     """ Creates a 2x2 figure. All subfigures show the evolution of a quantity over simulation-time, across simulations. 
         From the top-left to the bottom right is shown the number of bound particles, the half-mass radius of the disk, 
         the gravity energy error and the hydrodynamical energy error respectively. The legend specifies inner and outer radii of 
@@ -222,29 +222,12 @@ def process_run(root: str,savedir : str | None = None) -> None:
             arrays.append(arr)
 
         times,grav_energy,hydro_energy,Nbound,Rhalf = arrays # Unpack list of arrays
-        grav_energy_error = (grav_energy - grav_energy[0]) / grav_energy[0]
-        hydro_energy_error = (hydro_energy - hydro_energy[0]) / hydro_energy[0]
 
         rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
         rmin,rmax = float(rmin),float(rmax)
         
         axes.plot(times[1:],Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}')
-        # axes[0].semilogx()
         axes.set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
-
-
-        # #append nans to Rhalf to make it a multiple of 100
-        # while len(Rhalf) % 100 != 0:
-        #     Rhalf = np.append(Rhalf,np.nan)
-        # Rhalf_means = np.nanmean(np.array(Rhalf).reshape(-1,100), axis=1)
-        # axes[1].plot(times[::100],Rhalf_means)
-        # # axes[1].semilogx()
-        # axes[1].set(xlabel='Time [yr]',ylabel=r'$R_{\rm half}$ [AU]')
-
-        #grav energy error plot is moved to discussion TODO: make seperate energy error plot
-        # axes[2].plot(times,grav_energy_error)
-        # axes[2].semilogx()
-        # axes[2].set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
         
     if len(run_paths) > 1:
         handles,labels = axes.get_legend_handles_labels()
@@ -253,13 +236,71 @@ def process_run(root: str,savedir : str | None = None) -> None:
     fig.tight_layout()
 
     if savedir is not None:
-        filename = f'{savedir}/rmin-{rmin_run}_rmax{rmax_run}'
+        filename = f'{savedir}/nbound_rmin-{rmin_run}_rmax{rmax_run}'
         if 'm_orb' in root:
             filename += '_(single star)'
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
     plt.show()
+
+def energy_error_plot(root: str, savedir: str | None = None):
+    """ Creates a plot of the energy error over time for a given run. The run should have the relevant energy arrays saved in the root directory."""
+    array_paths = glob.glob(root+'/*.npy')
+
+    if len(array_paths) == 0:
+        raise FileNotFoundError("No files ending in .npy found in the specified directory. This likely means you have to re-run your simulation(s), "+
+                 "or use the get_nbound_over_time() functionality in this file to manually create the Nbound array.")
+
+    # Given the root of a run (with various simulations in it), get the various arrays and make plots
+    run_paths = get_npy_paths(root) #get relevant npy files     
+    fig,axes = plt.subplots(ncols=1,nrows=1)
+    rmin_run, rmax_run = get_rmin_rmax_from_run(root)
+    suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax_run:.2f} AU'
+    if 'm_orb' in root:
+        suptitle += ' (single star)'
+    fig.suptitle(suptitle,fontsize=28)
+    
+    for i,all_paths in enumerate(run_paths): # Iterate per sim
+        arrays = []
+        for i,path in enumerate(all_paths): # Go over all arrays in order and see if we saved with units or not, if so remove units
+            try:
+                arr = np.load(path)
+            except ValueError:
+                arr = np.load(path,allow_pickle=True)
+                if 'time' in path:
+                    arr = [t.value_in(units.yr) for t in arr]
+                elif 'grav' in path or 'hydro' in path:
+                    arr = [t.value_in(units.J) for t in arr]
+                elif 'Rhalf' in path:
+                    arr = [t.value_in(units.AU) for t in arr]
+            
+            arrays.append(arr)
+
+        times,grav_energy,hydro_energy,Nbound,Rhalf = arrays # Unpack list of arrays
+        grav_energy_error = (grav_energy - grav_energy[0]) / grav_energy[0]
+
+        rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
+        rmin,rmax = float(rmin),float(rmax)
+
+        axes.plot(times,grav_energy_error)
+        axes.set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
+        
+    if len(run_paths) > 1:
+        handles,labels = axes.get_legend_handles_labels()
+        fig.legend(handles,labels,bbox_to_anchor=(1.35,0.75), frameon=False)
+
+    fig.tight_layout()
+
+    if savedir is not None:
+        filename = f'{savedir}/energy_error_rmin-{rmin_run}_rmax{rmax_run}'
+        if 'm_orb' in root:
+            filename += '_(single star)'
+        filename += '.pdf'
+        plt.savefig(filename,bbox_inches='tight')
+
+    plt.show()
+
 
 
 def KL_effect_plot(root: str, savedir: str | None = None):
@@ -401,7 +442,8 @@ if __name__ == '__main__':
     parser.add_argument('--root_folder', type = str, default='/data2/AMUSE-KL-vdvuurst-pouw-badoux/', help='Directory in which simulation output is stored.', required = True)
     parser.add_argument('--plot_KL_effect', type = bool, default = False, help = 'Controls whether to run the code that plots the KL effect on orbital elements. WARNING: takes a long time to run.')
     parser.add_argument('--plot_plateau_hist', type = bool, default = False, help = 'Controls whether to run the code that plots the histogram of bound particle plateaus.')
-    parser.add_argument('--plot_run_analysis', type = bool, default = True, help = 'Controls whether to run the code that plots the general 2x2 subplot figure of run diagnostics, bound disk particles and half-mass width of the disk.')
+    parser.add_argument('--plot_nbound', type = bool, default = False, help = 'Controls whether to run the code that plots the nbound over time')
+    parser.add_argument('--plot_energy_error', type = bool, default = False, help = 'Controls whether to run the code that plots the energy error over time.')
     parser.add_argument('--save_dir', type = str, default = 'none', help = 'Output directory where plots will be stored. If "none", plots will only be output once and not stored.')
     args = parser.parse_args()
 
@@ -413,17 +455,16 @@ if __name__ == '__main__':
     for root in run_roots:
 
         if args.plot_KL_effect:
-            KL_effect_plot(root)
+            KL_effect_plot(root, args.save_dir)
 
         if args.plot_plateau_hist:
             #TODO: add code (with input) that lets the user decide what simulations to include in the histogram
-            plateau_histogram()
+            plateau_histogram(savedir=args.save_dir)
 
-        if args.plot_run_analysis:
+        if args.plot_nbound:
             rectify_filenames(root) # Sometimes, stored .npy files are inconsistent, this is made to rectify any mistakes there
-            process_run(root)
+            nbound_plot(root, args.save_dir)
         
-    
-
-        
- 
+        if args.plot_energy_error:
+            rectify_filenames(root)
+            energy_error_plot(root, args.save_dir)
