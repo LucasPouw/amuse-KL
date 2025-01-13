@@ -183,7 +183,7 @@ def process_run(root: str,savedir : str | None = None) -> None:
                 times = np.arange(1, len(Nbound)+1) # The times array likely is not saved, so we manually recreate it.
                 ax.plot(times,Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU, ' + r'$\, R_{\rm max}=$' + f'{rmax:.2f} AU')
 
-        ax.semilogx()
+        # ax.semilogx()
         ax.set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
         if savedir is not None:
             filename = f'{savedir}/rmin-{rmin_run}_rmax{rmax_run}'
@@ -198,7 +198,7 @@ def process_run(root: str,savedir : str | None = None) -> None:
 
     # Given the root of a run (with various simulations in it), get the various arrays and make plots
     run_paths = get_npy_paths(root) #get relevant npy files     
-    fig,axes = plt.subplots(figsize=(12,8),nrows=2,ncols=2,tight_layout=True)
+    fig,axes = plt.subplots(ncols=1,nrows=1)
     rmin_run, rmax_run = get_rmin_rmax_from_run(root)
     suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax_run:.2f} AU'
     if 'm_orb' in root:
@@ -228,25 +228,27 @@ def process_run(root: str,savedir : str | None = None) -> None:
         rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
         rmin,rmax = float(rmin),float(rmax)
         
-        axes[0,0].plot(times[1:],Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}')
-        axes[0,0].semilogx()
-        axes[0,0].set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
+        axes.plot(times[1:],Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}')
+        # axes[0].semilogx()
+        axes.set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
 
-        axes[0,1].plot(times[1:],Rhalf)
-        axes[0,1].semilogx()
-        axes[0,1].set(xlabel='Time [yr]',ylabel=r'$R_{\rm half}$ [AU]')
 
-        axes[1,0].plot(times,grav_energy_error)
-        axes[1,0].semilogx()
-        axes[1,0].set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
+        # #append nans to Rhalf to make it a multiple of 100
+        # while len(Rhalf) % 100 != 0:
+        #     Rhalf = np.append(Rhalf,np.nan)
+        # Rhalf_means = np.nanmean(np.array(Rhalf).reshape(-1,100), axis=1)
+        # axes[1].plot(times[::100],Rhalf_means)
+        # # axes[1].semilogx()
+        # axes[1].set(xlabel='Time [yr]',ylabel=r'$R_{\rm half}$ [AU]')
 
-        axes[1,1].plot(times,hydro_energy_error)
-        axes[1,1].semilogx()
-        axes[1,1].set(xlabel='Time [yr]',ylabel=r'Hydro energy error [J]')
+        #grav energy error plot is moved to discussion TODO: make seperate energy error plot
+        # axes[2].plot(times,grav_energy_error)
+        # axes[2].semilogx()
+        # axes[2].set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
         
     if len(run_paths) > 1:
-        handles,labels = axes[0,0].get_legend_handles_labels()
-        fig.legend(handles,labels,bbox_to_anchor=(1.35,0.75))
+        handles,labels = axes.get_legend_handles_labels()
+        fig.legend(handles,labels,bbox_to_anchor=(1.35,0.75), frameon=False)
 
     fig.tight_layout()
 
@@ -419,7 +421,7 @@ if __name__ == '__main__':
 
         if args.plot_run_analysis:
             rectify_filenames(root) # Sometimes, stored .npy files are inconsistent, this is made to rectify any mistakes there
-            process_run(root, savefigs = True)
+            process_run(root)
         
     
 
