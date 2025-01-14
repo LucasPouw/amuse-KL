@@ -416,16 +416,18 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
     # We choose to analyze the disk at 25 kyr, in the middle of the observed plateaus
     file_idx = 25000
 
-    #Create labels based on what snapshot file we are looking at
+    # Create labels based on what snapshot file we are looking at
     labels = []
     for dir in dirs:
+        if dir.endswith('/'):  
+            dir = dir[:-1]  # Do not include final backslash
         rmin,rmax = os.path.split(dir)[-1].split('-')[1:]
         if 'rmin' in rmin:
             rmin= rmin[4:]
         if 'rmax' in rmax:
             rmax = rmax[4:]
         rmin,rmax = float(rmin),float(rmax)
-        label = r'R_{\rm min}='+f'{rmin:.2f}'+r' AU,$\,$ R_{\rm max}='+f'{rmax:.2f} AU'
+        label = r'$R_{\rm min}=$'+f'{rmin:.2f}'+r' AU,$\,R_{\rm max}=$'+f'{rmax:.2f} AU'
         labels.append(label)
 
     medians = np.zeros(len(dirs))
@@ -449,9 +451,9 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
         stds[i] = np.std(bound_disk_pos)
 
     plt.ylabel('Probability density')
-    plt.xlabel('Distance from binary')
+    plt.xlabel('Distance from binary COM')
     plt.grid()
-    plt.legend()
+    plt.legend(frameon=False, fontsize=16, loc='upper right')
 
     if savedir is not None:
         filename = f'{savedir}/plateau_histogram.pdf'
@@ -467,6 +469,56 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
     print(f'The inner and outer radii at 2 sigma are {inners_2sig} and {outers_2sig}. This gives a mean of {np.mean(np.array(inners_2sig)):.2f} and {np.mean(np.array(outers_2sig)):.2f} AU.')
 
 
+def compare_nbound_plot(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/hydro_validation/r_min-8.12-r_max-9.42-vary_radii-True/',
+                                      '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/r_min-4.45-vary_radii-True/'],
+                        savedir: str | None = None) -> None:
+    #creates nbound vs time comparison over various roots
+    fig,ax = plt.subplots(figsize=(8,6))
+    stable_run_rmin, stable_run_rmax = 8.12,9.42 #Hardcoded to mark explicitly in the plot for in the report. Does not cause errors if this run does not exist
+
+    for root in dirs:
+
+        array_paths = glob.glob(root+'/*.npy')
+        
+        #Extract rmin and rmax from root name
+        rmin_run, rmax_run = get_rmin_rmax_from_run(root)
+
+        if len(array_paths) == 0:
+            raise FileNotFoundError("No files ending in .npy found in the specified directory. This likely means you have to re-run your simulation(s), "+
+                    "or use the get_nbound_over_time() functionality in this file to manually create the Nbound array.")
+        
+        # These are the runs that crashed and only have a manually created Nbound array. We only plot Nbound for these runs
+        else:
+            for path in array_paths:
+                if 'Nbound' not in path: # We plot the Nbound only
+                    continue
+                else:
+                    rmin, rmax = os.path.split(path)[-1].strip('.npy').split('_')[-1].split('-') #extract rmin and rmax from filepath
+                    rmin, rmax = float(rmin), float(rmax)
+                    
+                    Nbound = np.load(path)
+                    times = np.arange(1, len(Nbound)+1) # The times array likely is not saved, so we manually recreate it.
+                    size = (Nbound.shape[0] // 50) * 50 
+                    Nbound = np.append(Nbound[:size].reshape(-1,50).mean(axis=1),np.mean(Nbound[size:])) # Take the mean of every 50 points to smooth out the plot
+                    times = np.append(times[:size].reshape(-1,50).mean(axis=1),np.mean(times[size:]))
+
+                    if rmin == stable_run_rmin and rmax == stable_run_rmax: # Highlight the stable run for in the report
+                        ax.plot(times,Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}', lw = 3, zorder=100, c = 'black')
+                    else:
+                        ax.plot(times,Nbound,label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}')
+
+    ax.semilogx()
+    ax.set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
+    ax.legend(bbox_to_anchor=(1.05,0.95),frameon=False, ncols=1)
+    if savedir is not None:
+        filename = f'{savedir}/nbound_comparison'
+        filename += '.pdf'
+        plt.savefig(filename,bbox_inches='tight')
+    plt.show()
+            
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyze data gathered from simulations. Works for either a single run'+ 
                                      ' or for a directory of runs.')
@@ -475,6 +527,7 @@ if __name__ == '__main__':
     parser.add_argument('--plot_nbound_rhalf', type = bool, default = False, help = 'Controls whether to run the code that plots the nbound over time')
     parser.add_argument('--plot_energy_error', type = bool, default = False, help = 'Controls whether to run the code that plots the energy error over time.')
     parser.add_argument('--plot_hydro_val', type = bool, default = False, help = 'Controls whether to run the code that plots Nbound over time for various disk particle numbers.')
+    parser.add_argument('--plot_comp_nbound', type = bool, default = False, help = 'Controls whether to run the code that plots Nbound over time for a vary radii and a stable disk run.')
     parser.add_argument('--save_dir', type = str, default = 'none', help = 'Output directory where plots will be stored. If "none", plots will only be output once and not stored.')
     args = parser.parse_args()
 
@@ -490,12 +543,16 @@ if __name__ == '__main__':
     if args.plot_hydro_val:
         hydro_validation_plot(run_roots, save_dir)
 
+    if args.plot_comp_nbound:
+        #TODO: add code (with input) that lets the user decide what simulations to include in the plot
+        compare_nbound_plot(savedir=save_dir)
+
+    if args.plot_plateau_hist:
+        #TODO: add code (with input) that lets the user decide what simulations to include in the histogram
+        plateau_histogram(savedir=save_dir)
+
     # For all recognized runs in a root directory, make the desired plots. Note the default values in the parser.
     for root in run_roots:
-
-        if args.plot_plateau_hist:
-            #TODO: add code (with input) that lets the user decide what simulations to include in the histogram
-            plateau_histogram(savedir=save_dir)
 
         if args.plot_nbound_rhalf:
             rectify_filenames(root) # Sometimes, stored .npy files are inconsistent, this is made to rectify any mistakes there
