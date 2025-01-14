@@ -293,12 +293,12 @@ def energy_error_plot(root: str, savedir: str | None = None):
     run_paths = get_npy_paths(root) #get relevant npy files     
     fig,axes = plt.subplots(ncols=1,nrows=1)
     rmin_run, rmax_run = get_rmin_rmax_from_run(root)
-    suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax_run:.2f} AU'
-    if 'm_orb' in root:
-        suptitle += ' (single star)'
-    fig.suptitle(suptitle,fontsize=28)
-    
-    for i,all_paths in enumerate(run_paths): # Iterate per sim
+    # suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax_run:.2f} AU'
+    # if 'm_orb' in root:
+    #     suptitle += ' (single star)'
+    # fig.suptitle(suptitle,fontsize=28)
+
+    for i,all_paths in enumerate(run_paths[::-1]): # Iterate per sim
         arrays = []
         for i,path in enumerate(all_paths): # Go over all arrays in order and see if we saved with units or not, if so remove units
             try:
@@ -319,13 +319,17 @@ def energy_error_plot(root: str, savedir: str | None = None):
 
         rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
         rmin,rmax = float(rmin),float(rmax)
-
-        axes.plot(times,grav_energy_error)
+        
+        try:
+            axes.plot(times,grav_energy_error, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU\n' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU')
+        except:
+            axes.plot(np.arange(len(grav_energy_error)),grav_energy_error, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU\n' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU')
         axes.set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
+        axes.semilogx()
         
     if len(run_paths) > 1:
         handles,labels = axes.get_legend_handles_labels()
-        fig.legend(handles,labels,bbox_to_anchor=(1.35,0.75), frameon=False)
+        axes.legend(handles,labels,frameon=False, loc='center left')
 
     fig.tight_layout()
 
@@ -347,7 +351,7 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
     # fig.suptitle(r'$R_{\rm min}=$' + f'{rmin:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax:.2f} AU',fontsize = 28)
     for root in roots:
         # Extract the initial number of SPH particles in the disk from filename 
-        rmin, rmax = get_rmin_rmax_from_run(roots[0])
+        rmin, rmax = get_rmin_rmax_from_run(root)
         info_strings = np.array(os.path.split(root)[-1].split('-'))
         if 'n_disk' not in info_strings:
             ndisk = 1000
@@ -384,13 +388,13 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
             times = np.arange(0,len(Nbound)+1)
 
         frac_bound = Nbound / Nbound[0]
-        ax.plot(times[1:],frac_bound, label = r'$R_{\rm min}=$' + f'{rmin:.2f}' + r'$\, R_{\rm max}=$' + f'{rmax:.2f}' + r'$\, N_{\rm disk}$=' + f"{ndisk} " )
+        ax.plot(times[1:],frac_bound, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU, ' + r'$N_{\rm disk}$=' + f"{ndisk} " )
 
-    ax.set(xlabel = 'Time [yr]', ylabel = 'Nbound')
+    ax.set(xlabel = 'Time [yr]', ylabel = r'$f_\text{bound}$')
     ax.semilogx()
     ax.legend(bbox_to_anchor=(1.05,0.75),frameon=False, ncols=1)
     if savedir is not None:
-        filename = f'{savedir}/hydro_validation.pdf'
+        filename = f'{savedir}/hydro_validation.png'
         plt.savefig(filename,bbox_inches='tight')
 
     plt.show()
