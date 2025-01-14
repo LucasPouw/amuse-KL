@@ -113,7 +113,7 @@ def plot_inc_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, e
     return
 
 def plot_ang_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, asc: VectorQuantity,
-                  peri: VectorQuantity, ecc: np.ndarray) -> None:
+                  peri: VectorQuantity, ecc: np.ndarray, legend_kwargs=None) -> None:
     """Creates plot of eccentricity, inclination, longitude of ascending node and argument of periapsis over time. 
 
     Args:
@@ -140,7 +140,9 @@ def plot_ang_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, a
     ang_ax.set_ylabel('Angle [deg]', color='blue')
     ang_ax.tick_params(axis='y', labelcolor='blue')
     ang_ax.set_ylim(-180, 180)
-    plt.legend(loc='upper left', bbox_to_anchor=(1,0))
+
+    if legend_kwargs:
+        plt.legend(**legend_kwargs)
     return
 
 def plot_smbh_and_stars(axes:mpl.axes.Axes, particle_set: Particles, lim: int = 10) -> None:

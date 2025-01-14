@@ -60,6 +60,11 @@ def _get_time_array(root, npoints):
     return times
 
 
+def average_every(array, decimation):
+    array = array[:int(len(array)//decimation * decimation)]  # Make array size a multiple of decimation
+    return array.reshape(-1, decimation).mean(axis=1)
+
+
 def _check_orbital_element_files_binary(bin_root: str, sin_root: str, binary_snapshot_path: str, single_snapshot_path: str):
 
     binary_elements = ['eccs','incs','ascs','peris',                                  # Disk orbital elements around binary
@@ -126,12 +131,20 @@ def KL_effect_plot(bin_root: str, sin_root: str, binary_snapshot_path: str, sing
 
     Args:
     """
-    bin_time, sin_time, eccs_single, incs_single, ascs_single, peris_single, eccs_disk, incs_disk, ascs_disk, peris_disk, eccs_binary, incs_binary, ascs_binary, peris_binary = _check_orbital_element_files_binary(bin_root, sin_root, binary_snapshot_path, single_snapshot_path)    
+    bin_time, sin_time, eccs_single, incs_single, ascs_single, peris_single, eccs_disk, incs_disk, ascs_disk, peris_disk, eccs_binary, incs_binary, ascs_binary, peris_binary = _check_orbital_element_files_binary(bin_root, sin_root, binary_snapshot_path, single_snapshot_path)
 
+    N = 500
     fig, ax = plt.subplots(3, 1, figsize=(10, 18))
-    plot_ang_ecc(ax[0], bin_time | units.yr, incs_binary | units.deg, ascs_binary | units.deg, peris_binary | units.deg, eccs_binary)
-    plot_ang_ecc(ax[1], bin_time | units.yr, incs_disk | units.deg, ascs_disk | units.deg, peris_disk | units.deg, eccs_disk)
-    plot_ang_ecc(ax[2], sin_time | units.yr, incs_single | units.deg, ascs_single | units.deg, peris_single | units.deg, eccs_single)
+    plot_ang_ecc(ax[0], average_every(bin_time, N) | units.yr, average_every(incs_binary, N) | units.deg, average_every(ascs_binary, N) | units.deg, average_every(peris_binary, N) | units.deg, average_every(eccs_binary, N), legend_kwargs={'loc': 'upper right'})
+    plot_ang_ecc(ax[1], average_every(bin_time, N) | units.yr, average_every(incs_disk, N) | units.deg, average_every(ascs_disk, N) | units.deg, average_every(peris_disk, N) | units.deg, average_every(eccs_disk, N))
+    plot_ang_ecc(ax[2], average_every(sin_time, N) | units.yr, average_every(incs_single, N) | units.deg, average_every(ascs_single, N) | units.deg, average_every(peris_single, N) | units.deg, average_every(eccs_single, N))
+
+    ax[0].set_xlim(0, max(bin_time[-1], sin_time[-1]))
+    ax[1].set_xlim(0, max(bin_time[-1], sin_time[-1]))
+    ax[2].set_xlim(0, max(bin_time[-1], sin_time[-1]))
+
+    ax[0].set_xlabel('')
+    ax[1].set_xlabel('')
     
     if file_path is not None:
         plt.savefig(file_path, bbox_inches='tight')
