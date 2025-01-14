@@ -16,9 +16,10 @@ from tqdm import tqdm
 import matplotlib as mpl
 
 # Move working directory one directory upwards (if running from the repo) to avoid saving anything in the github repo
-if 'amuse-KL' in os.getcwd(): 
-    os.chdir('..' ) 
-print(f'Saving all files in: {os.getcwd()}\n')
+if __name__ == '__main__':
+    if 'amuse-KL' in os.getcwd(): 
+        os.chdir('..' ) 
+    print(f'Saving all files in: {os.getcwd()}\n')
 
 # We define some properties for the figures
 SMALL_SIZE = 10 * 2 
