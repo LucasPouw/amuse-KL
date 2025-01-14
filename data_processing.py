@@ -15,6 +15,7 @@ from scipy.optimize import curve_fit
 import argparse
 from plotter import * # Importing also changes mpl.rcParams to make plots nice
 
+
 def dissect_system(particle_system):
     """ 
     Helper function that seperates disk, stars and center of mass from a given particle system
@@ -38,6 +39,15 @@ def get_disk_orbital_elements(particle_system):
     """
     disk, _, com = dissect_system(particle_system)
     m1, m2, ax, ecc, anom, inc, asc, peri = get_orbital_elements_from_binaries(com, disk, G=constants.G)
+    return m1, m2, ax, ecc, anom, inc, asc, peri
+
+
+def get_binary_orbital_elements(particle_system):
+    """ 
+    Wrapper function to distill oribital elements of the binary from the total particle system (i.e. with SMBH and disk in it as well) 
+    """
+    _, binary, _ = dissect_system(particle_system)
+    m1, m2, ax, ecc, anom, inc, asc, peri = get_orbital_elements_from_binaries(binary[0], binary[1], G=constants.G)
     return m1, m2, ax, ecc, anom, inc, asc, peri
     
 
@@ -386,73 +396,6 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
     plt.show()
 
 
-
-def KL_effect_plot(root: str, savedir: str | None = None):
-    """ Creates a plot of the von Zeipel-Lidov-Kozai effect on orbital parameters of the disk, given the root in which simulation output is stored.
-        If the necessary orbital elements are not yet saved in the directory, they will be calculated here.
-        STRONGLY recommended to do this only for a run with a single snapshot folder specified as this function takes a while when running for the first time.
-
-    Args:
-        root (str): Root folder in which the simulation output is stored.
-        savedir (str | None, optional): Path to directory where the resulting plot may be saved in. If None, will only show the plot. Defaults to None.
-    """
-    tail = os.path.split(root)[-1]
-
-    # Check if the arrays containing the relevant data *all* exist already or not
-    flag = True
-    paths = []
-    for attribute in ['eccs','incs','ascs','peris']:
-        path = os.path.join(root,f'{attribute}-{tail}.npy')
-        paths.append(path)
-        flag *= os.path.isfile(path)
-    
-
-    if flag: # i.e. all arrays already exist for this root
-        eccs_single = np.load(paths[0])
-        incs_single = np.load(paths[1])
-        ascs_single = np.load(paths[2])
-        peris_single = np.load(paths[3])
-    
-    else: #the orbital parameters are not yet defined (at least not all of them), so we recalculate. This takes a while.
-        
-        eccs = []
-        incs = []
-        ascs = []
-        peris = []
-        for datafile in tqdm(get_sorted_files(root)):
-            snapshot = read_set_from_file(datafile)
-            _, _, _, ecc, _, inc, asc, peri = get_disk_orbital_elements(snapshot)
-            bound = ecc < 1
-
-            eccs.append(np.median(ecc[bound]))
-            incs.append(np.median(inc[bound].value_in(units.deg)))
-            ascs.append(np.median(asc[bound].value_in(units.deg)))
-            peris.append(np.median(peri[bound].value_in(units.deg)))
-
-        np.save(paths[0], eccs)
-        np.save(paths[1], incs)
-        np.save(paths[2], ascs)
-        np.save(paths[3], peris)
-
-    try:
-        timepath = [t for t in os.listdir(root) if 'times' in t][0] #extract the time array
-        times_single = np.load(timepath)
-    except IndexError: #i.e., time array does not exist, we create it as we know it should be of the shape as the orbital parameters in steps of 1
-        times_single = np.arange(1,len(eccs)+1) | units.yr
-
-    # Create the plot TODO: Lucas wants to make some changes here.
-    fig, ax = plt.subplots(figsize=(10, 6))
-    plot_ang_ecc(ax, times_single | units.yr, incs_single | units.deg, ascs_single | units.deg, peris_single | units.deg, eccs_single)
-    
-    rmin, rmax = get_rmin_rmax_from_run(root)
-    if savedir is not None:
-        filename = f'{savedir}/vZKL_effect_rmin-{rmin:.2f}_rmax-{rmax:.2f}'
-        if 'm_orb' in root:
-            filename += '_(single star)'
-        filename += '.pdf'
-        plt.savefig(filename, bbox_inches='tight')
-    plt.show()
-
 def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/vary_radii-True/snapshots-rmin7.265-rmax12.025/',
                     '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/r_min-7.589-r_max-10.989/snapshots-rmin7.589-rmax10.989/',
                     '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data/r_min-7.625-r_max-12.025-vary_radii-True/snapshots-rmin7.763-rmax11.723',
@@ -489,7 +432,7 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
         file = get_sorted_files(snapshot_dir)[file_idx] #take the snapshot at file_idx years, i.e., 25 kyr
         data = read_set_from_file(file)
 
-        _, _, _, ecc, _, inc, asc, peri = get_disk_orbital_elements(data)
+        _, _, _, ecc, _, _, _, _ = get_disk_orbital_elements(data)
         bound = ecc < 1
         
         disk, _, com = dissect_system(data)
@@ -524,11 +467,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyze data gathered from simulations. Works for either a single run'+ 
                                      ' or for a directory of runs.')
     parser.add_argument('--root_folder', type = str, default='/data2/AMUSE-KL-vdvuurst-pouw-badoux/', help='Directory in which simulation output is stored.', required = True)
-    parser.add_argument('--plot_KL_effect', type = bool, default = False, help = 'Controls whether to run the code that plots the KL effect on orbital elements. WARNING: takes a long time to run.')
     parser.add_argument('--plot_plateau_hist', type = bool, default = False, help = 'Controls whether to run the code that plots the histogram of bound particle plateaus.')
     parser.add_argument('--plot_nbound_rhalf', type = bool, default = False, help = 'Controls whether to run the code that plots the nbound over time')
     parser.add_argument('--plot_energy_error', type = bool, default = False, help = 'Controls whether to run the code that plots the energy error over time.')
-    parser.add_argument('--plot_hydro_val', type = bool, default = True, help = 'Controls whether to run the code that plots Nbound over time for various disk particle numbers.')
+    parser.add_argument('--plot_hydro_val', type = bool, default = False, help = 'Controls whether to run the code that plots Nbound over time for various disk particle numbers.')
     parser.add_argument('--save_dir', type = str, default = 'none', help = 'Output directory where plots will be stored. If "none", plots will only be output once and not stored.')
     args = parser.parse_args()
 
@@ -546,9 +488,6 @@ if __name__ == '__main__':
 
     # For all recognized runs in a root directory, make the desired plots. Note the default values in the parser.
     for root in run_roots:
-
-        if args.plot_KL_effect:
-            KL_effect_plot(root, save_dir)
 
         if args.plot_plateau_hist:
             #TODO: add code (with input) that lets the user decide what simulations to include in the histogram
