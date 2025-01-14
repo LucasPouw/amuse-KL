@@ -6,6 +6,7 @@ import os
 import sys
 import glob
 import argparse
+from tqdm import tqdm
 
 # Move working directory one directory upwards (if running from the repo) to avoid saving anything in the github repo
 if 'amuse-KL' in os.getcwd(): 
@@ -39,7 +40,7 @@ def moviemaker(image_folder: str, video_name: str, fps: int =10, height: int =10
     fourcc = cv2.VideoWriter_fourcc(*codec)
     video = cv2.VideoWriter(video_name, fourcc, fps, (width, height))
 
-    for image_name in sorted_images:
+    for image_name in tqdm(sorted_images):
         img = cv2.imread(image_name)
         img = cv2.resize(img, (width, height))
         video.write(img)
