@@ -19,7 +19,7 @@ import matplotlib as mpl
 if __name__ == '__main__':
     if 'amuse-KL' in os.getcwd(): 
         os.chdir('..' ) 
-    print(f'Saving all files in: {os.getcwd()}\n')
+    print(f'Creating image folder in: {os.getcwd()}\n')
 
 # We define some properties for the figures
 SMALL_SIZE = 10 * 2 
@@ -291,7 +291,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
     parser.add_argument('--file_dir',type=str,default=os.getcwd(),help='Directory where HDF5 files are stored.')
     parser.add_argument('--step_size',type=int,default=100,help='Generate a plot every step_size snapshot.')
-    parser.add_argument('--no_disk', type = bool, default = False, help = 'No disk?')
+    parser.add_argument('--no_disk', type = bool, default = False, help = 'Boolean to specify if simulation is with or without disk.')
     args = parser.parse_args()
 
     # Move one directory up from the given file_dir so as not to save plots where snapshots are stored
