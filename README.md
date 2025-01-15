@@ -32,23 +32,23 @@ If you want to simulate a single star with a disk that has inner radius 3 AU and
 Currently, Huayno (Jänes et al., [2014](https://www.aanda.org/articles/aa/full_html/2014/10/aa23831-14/aa23831-14.html)) and Hermite (Makino, [1991](https://ui.adsabs.harvard.edu/abs/1991ApJ...369..200M/abstract)) are supported gravity solvers. The default is Huayno, but you can specify `--grav_code Hermite` to use Hermite. The only supported hydrodynamics solver is Fi (Hernquist and Katz, [1989](https://ui.adsabs.harvard.edu/abs/1989ApJS...70..419H/abstract); Gerritsen and Icke, [1997](https://adsabs.harvard.edu/full/1997A%26A...325..972G); Pelupessy et al., [2004](https://www.aanda.org/articles/aa/abs/2004/28/aa0071-04/aa0071-04.html)).
 
 For convenience, here is a list of all arguments that can be specified:
-`--m_smbh <BH mass>`
-`--a_out <semi-major axis of outer orbit>`
-`--e_out <eccentricity of outer orbit>`
-`--m_orb <mass(es) of star(s)>`
-`--a_in <semi-major axis of inner orbit>`
-`--e_in <eccentricity of inner orbit>`
-`--i_mut <mutual inclination of disk and binary>`
-`--peri <argument of periapse of the inner orbit>`
-`--r_min <inner disk radius>`
-`--r_max <outer disk radius>`
-`--m_disk <disk mass>`
-`--n_disk <amount of SPH particles>`
-`--dt <diagnostic timestep>`
-`--t_end <simulation end time>`
-`--file_dir <where simulation output will be stored>`
-`--no_disk <run with or without disk>`
-`--vary_radii <restart simulations with more stable radius until convergence>`
+`--m_smbh <BH mass>`\
+`--a_out <semi-major axis of outer orbit>`\
+`--e_out <eccentricity of outer orbit>`\
+`--m_orb <mass(es) of star(s)>`\
+`--a_in <semi-major axis of inner orbit>`\
+`--e_in <eccentricity of inner orbit>`\
+`--i_mut <mutual inclination of disk and binary>`\
+`--peri <argument of periapse of the inner orbit>`\
+`--r_min <inner disk radius>`\
+`--r_max <outer disk radius>`\
+`--m_disk <disk mass>`\
+`--n_disk <amount of SPH particles>`\
+`--dt <diagnostic timestep>`\
+`--t_end <simulation end time>`\
+`--file_dir <where simulation output will be stored>`\
+`--no_disk <run with or without disk>`\
+`--vary_radii <restart simulations with more stable radius until convergence>`\
 `--grav_code <specify Huayno or Hermite integrator>` 
 
 ### Simulation output
@@ -78,7 +78,7 @@ First, set-up and simulate a simple, low-resolution disk (100 SPH particles) aro
 
 Make sure to set `--vary_radii` to False (which is the default), since if this is true you may run more simulations than desired, since the code will try to find a stable configuration. Again, you may also specify the simulation output by giving a full path to `--file_dir`. Once the simulation is complete, you can create plots and a video of your simulation by running the following:
 
-```python3 plotter.py --snapshot_dir <path/to/snapshot/folder/> --step_size 10 ``` 
+```python3 plotter.py --snapshot_dir <path/to/snapshot/folder/> --step_size 10 ``` \
 ```python3 moviemaker.py --image_dir <path/to/image/folder/> --video_name <your_file_name> ```
 
 This will create a plot of every 10th snapshot, quickening the process, and make a movie from those plots. Include ``--codec avc1`` when calling `moviemaker.py` for a much lighter video, but note the requirement mentioned above.
