@@ -209,8 +209,8 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
         ax.set(xlabel='Time [yr]',ylabel=r'$N_{\rm bound}$')
         if savedir is not None:
             filename = f'{savedir}/rmin-{rmin_run}_rmax{rmax_run}'
-            if 'm_orb' in root:
-                filename += '_(single star)'
+            if 'm_orb' in root:  
+                filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
             filename += '.pdf'
             plt.savefig(filename,bbox_inches='tight')
         plt.show()
@@ -223,7 +223,7 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
     fig,axes = plt.subplots(ncols=2,nrows=1,figsize=(10,6))
     suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax_run:.2f} AU'
     if 'm_orb' in root:
-        suptitle += ' (single star)'
+        suptitle += ' (single star)'  # TODO: not correct in case binary masses are non-default
     fig.suptitle(suptitle,fontsize=28)
     
     for i,all_paths in enumerate(run_paths): # Iterate per sim
@@ -275,7 +275,7 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
     if savedir is not None:
         filename = f'{savedir}/nbound_rhalf_rmin-{rmin_run}_rmax{rmax_run}'
         if 'm_orb' in root:
-            filename += '_(single star)'
+            filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
@@ -291,14 +291,15 @@ def energy_error_plot(root: str, savedir: str | None = None):
 
     # Given the root of a run (with various simulations in it), get the various arrays and make plots
     run_paths = get_npy_paths(root) #get relevant npy files     
-    fig,axes = plt.subplots(ncols=1,nrows=1)
+    fig, axes = plt.subplots(ncols=1,nrows=1)
+    axes.grid()
     rmin_run, rmax_run = get_rmin_rmax_from_run(root)
     # suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax_run:.2f} AU'
     # if 'm_orb' in root:
-    #     suptitle += ' (single star)'
+    #     suptitle += ' (single star)'  # TODO: not correct in case binary masses are non-default
     # fig.suptitle(suptitle,fontsize=28)
 
-    for i,all_paths in enumerate(run_paths[::-1]): # Iterate per sim
+    for i, all_paths in enumerate(run_paths[::-1]): # Iterate per sim
         arrays = []
         for i,path in enumerate(all_paths): # Go over all arrays in order and see if we saved with units or not, if so remove units
             try:
@@ -314,16 +315,16 @@ def energy_error_plot(root: str, savedir: str | None = None):
             
             arrays.append(arr)
 
-        times,grav_energy,hydro_energy,Nbound,Rhalf = arrays # Unpack list of arrays
+        times, grav_energy, _, _, _ = arrays # Unpack list of arrays
         grav_energy_error = (grav_energy - grav_energy[0]) / grav_energy[0]
 
         rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
         rmin,rmax = float(rmin),float(rmax)
         
         try:
-            axes.plot(times,grav_energy_error, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU\n' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU')
+            axes.plot(times,grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU')
         except:
-            axes.plot(np.arange(len(grav_energy_error)),grav_energy_error, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU\n' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU')
+            axes.plot(np.arange(len(grav_energy_error)),grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU')
         axes.set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
         axes.semilogx()
         
@@ -335,8 +336,8 @@ def energy_error_plot(root: str, savedir: str | None = None):
 
     if savedir is not None:
         filename = f'{savedir}/energy_error_rmin-{rmin_run}_rmax{rmax_run}'
-        if 'm_orb' in root:
-            filename += '_(single star)'
+        if 'm_orb' in root:  
+            filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
@@ -388,13 +389,15 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
             times = np.arange(0,len(Nbound)+1)
 
         frac_bound = Nbound / Nbound[0]
-        ax.plot(times[1:],frac_bound, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU, ' + r'$N_{\rm disk}$=' + f"{ndisk} " )
+        # ax.plot(times[1:], frac_bound, label = r'$R_{\rm min}=$' + f'{rmin:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax:.2f} AU, ' + r'$N_{\rm disk}$=' + f"{ndisk}")
+        ax.plot(times[1:], frac_bound, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU, ' + r'$N_{\rm disk}$=' + f"$10^{int(np.log10(ndisk))}$")
 
     ax.set(xlabel = 'Time [yr]', ylabel = r'$f_\text{bound}$')
     ax.semilogx()
-    ax.legend(bbox_to_anchor=(1.05,0.75),frameon=False, ncols=1)
+    ax.grid()
+    ax.legend(loc='lower left',frameon=False, ncols=1, fontsize=16)
     if savedir is not None:
-        filename = f'{savedir}/hydro_validation.png'
+        filename = f'{savedir}/hydro_validation.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
     plt.show()
@@ -522,7 +525,7 @@ def compare_nbound_plot(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/hydr
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyze data gathered from simulations. Works for either a single run'+ 
                                      ' or for a directory of runs.')
-    parser.add_argument('--root_folder', type = str, default='/data2/AMUSE-KL-vdvuurst-pouw-badoux/', help='Directory in which simulation output is stored.', required = True)
+    parser.add_argument('--root_folder', type = str, default='/data2/AMUSE-KL-vdvuurst-pouw-badoux/', help='Directory in which simulation output is stored.')
     parser.add_argument('--plot_plateau_hist', type = bool, default = False, help = 'Controls whether to run the code that plots the histogram of bound particle plateaus.')
     parser.add_argument('--plot_nbound_rhalf', type = bool, default = False, help = 'Controls whether to run the code that plots the nbound over time')
     parser.add_argument('--plot_energy_error', type = bool, default = False, help = 'Controls whether to run the code that plots the energy error over time.')
