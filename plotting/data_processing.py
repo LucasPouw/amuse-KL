@@ -1,4 +1,3 @@
- 
 ## Made by Lucas Pouw, Yannick Badoux and Tim van der Vuurst for the 
 ## course "Simulations and Modeling in Astrophysics" '24-'25. 
 
@@ -210,7 +209,7 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
         if savedir is not None:
             filename = f'{savedir}/rmin-{rmin_run}_rmax{rmax_run}'
             if 'm_orb' in root:  
-                filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
+                filename += f'm_orb{root.split('m_orb-')[-1].split('-')[0]}'
             filename += '.pdf'
             plt.savefig(filename,bbox_inches='tight')
         plt.show()
@@ -223,7 +222,7 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
     fig,axes = plt.subplots(ncols=2,nrows=1,figsize=(10,6))
     suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax_run:.2f} AU'
     if 'm_orb' in root:
-        suptitle += ' (single star)'  # TODO: not correct in case binary masses are non-default
+        suptitle += f'Orbiter mass(es): {root.split('m_orb-')[-1].split('-')[0]}'
     fig.suptitle(suptitle,fontsize=28)
     
     for i,all_paths in enumerate(run_paths): # Iterate per sim
@@ -275,7 +274,7 @@ def nbound_rhalf_plot(root: str,savedir : str | None = None) -> None:
     if savedir is not None:
         filename = f'{savedir}/nbound_rhalf_rmin-{rmin_run}_rmax{rmax_run}'
         if 'm_orb' in root:
-            filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
+            filename += f'm_orb{root.split('m_orb-')[-1].split('-')[0]}'
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
@@ -294,10 +293,6 @@ def energy_error_plot(root: str, savedir: str | None = None):
     fig, axes = plt.subplots(ncols=1,nrows=1)
     axes.grid()
     rmin_run, rmax_run = get_rmin_rmax_from_run(root)
-    # suptitle = r'$R_{\rm min}=$' + f'{rmin_run:.2f} AU, ' + r'$R_{\rm max}=$' + f'{rmax_run:.2f} AU'
-    # if 'm_orb' in root:
-    #     suptitle += ' (single star)'  # TODO: not correct in case binary masses are non-default
-    # fig.suptitle(suptitle,fontsize=28)
 
     for i, all_paths in enumerate(run_paths[::-1]): # Iterate per sim
         arrays = []
@@ -339,7 +334,7 @@ def energy_error_plot(root: str, savedir: str | None = None):
     if savedir is not None:
         filename = f'{savedir}/energy_error_rmin-{rmin_run}_rmax{rmax_run}'
         if 'm_orb' in root:  
-            filename += '_(single star)'  # TODO: not correct in case binary masses are non-default
+            filename += f'm_orb{root.split('m_orb-')[-1].split('-')[0]}'
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
 
@@ -405,12 +400,13 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
     plt.show()
 
 
-def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/vary_radii-True/snapshots-rmin7.265-rmax12.025/',
-                    '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/r_min-7.589-r_max-10.989/snapshots-rmin7.589-rmax10.989/',
+def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/vary_radii-True/snapshots-rmin7.265-rmax12.025',
+                    '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-lucas/amuseKL-output/r_min-7.589-r_max-10.989/snapshots-rmin7.589-rmax10.989',
                     '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data/r_min-7.625-r_max-12.025-vary_radii-True/snapshots-rmin7.763-rmax11.723',
                     '/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data/r_min-7.625-r_max-12.025-vary_radii-True/snapshots-rmin8.027-rmax11.107'],
                     savedir: str | None = None):
-    """ Creates a plot with multiple histograms signifying a PDF of disk particle distance from binary for specified runs.
+    """ Creates a 2x1 figure. Left panel: Bound particles over time for specified runs.
+        Right panel: multiple histograms signifying a PDF of disk particle distance from binary for specified runs.
         Requires a list of directories leading to the snapshots of a simulation, even if it is just one.
 
     Args:
@@ -438,7 +434,27 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
     medians = np.zeros(len(dirs))
     stds = np.zeros(len(dirs))
 
-    plt.figure(figsize=(8,6))
+    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(6.2*2,4.8))
+    for i,dir in enumerate(dirs):
+        head, tail = os.path.split(dir)
+        rmin,rmax = os.path.split(dir)[-1].split('-')[1:]
+        if 'rmin' in rmin:
+            rmin= rmin[4:]
+        if 'rmax' in rmax:
+            rmax = rmax[4:]
+        rmin,rmax = float(rmin),float(rmax)        
+        nbound_path = os.path.join(head, f"Nbound_{rmin}-{rmax}.npy")
+        nbound = np.load(nbound_path)
+
+        axes[0].plot(np.arange(len(nbound)), nbound, label=labels[i])
+
+    axes[0].axvline(file_idx, label=r'$t=2.5\cdot10^4$ yr', c='k', zorder=0, ls='--')
+    axes[0].legend(frameon=False, fontsize=13)
+    axes[0].set_xlabel('Time [yr]')
+    axes[0].set_ylabel(r'$N_\text{bound}$')
+    axes[0].semilogx()
+    axes[0].grid()
+
     for i, snapshot_dir in enumerate(dirs):
         file = get_sorted_files(snapshot_dir)[file_idx] #take the snapshot at file_idx years, i.e., 25 kyr
         data = read_set_from_file(file)
@@ -450,19 +466,21 @@ def plateau_histogram(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/Data-l
         disk.position -= com.position
         bound_disk_pos = np.linalg.norm(disk[bound].position.value_in(units.AU), axis=1)
 
-        plt.hist(bound_disk_pos, density=True, bins=30, histtype='step', linewidth=5, label=labels[i])
+        axes[1].hist(bound_disk_pos, density=True, bins=30, histtype='step', linewidth=5, label=labels[i])
 
         medians[i] = np.median(bound_disk_pos)
         stds[i] = np.std(bound_disk_pos)
 
-    plt.ylabel('Probability density')
-    plt.xlabel('Distance from binary COM')
-    plt.grid()
-    plt.legend(frameon=False, fontsize=16, loc='upper right')
+    axes[1].set_ylabel('Probability density')
+    axes[1].set_xlabel('Distance from binary COM [AU]')
+    axes[1].grid()
+    axes[1].legend(frameon=False, fontsize=13, loc='upper right')
+
+    fig.tight_layout()
 
     if savedir is not None:
         filename = f'{savedir}/plateau_histogram.pdf'
-        plt.savefig(filename, bbox_inches = 'tight')
+        fig.savefig(filename, bbox_inches = 'tight')
 
     plt.show()
 
