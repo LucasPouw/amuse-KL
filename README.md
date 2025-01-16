@@ -62,7 +62,7 @@ To reduce the computation time, which is mainly set by the hydrodynamics solver,
 ### Making a movie
 A series of plots can be made with `plotter.py`. Again, this can be controlled with terminal input thanks to an argument parser. You can specify the snapshot directory which you want to create plots of (`--file_dir`), control if you want to make a plot of every snapshot or every $n$-th one (`--step_size`) and specify if the simulation you are plotting is with or without disk (`--no_disk`). 
 
-After the plots have been made, the script `moviemaker.py` can make all images in a specified directory into a movie, where you can specify the FPS, height, width and codec of the movie (see source code for more details). NOTE: if you want to use the codec 'avc1', which is much lighter than the default 'XVID', you must seperately install ... . This is *not* included in `requirements.txt`. 
+After the plots have been made, the script `moviemaker.py` can make all images in a specified directory into a movie, where you can specify the FPS, height, width and codec of the movie (see source code for more details). FFmpeg is required to do this. NOTE: if you want to use the codec 'avc1', which is much lighter than the default 'XVID', opencv must be installed via conda-forge. This is *not* included in `requirements.txt`. To install, run: ```conda install -c conda-forge opencv```.
 
 ### Data analysis
 Most of the figures in the report can be reproduced by running `data_processing.py`. Please have a thorough look at the parser in the source code before doing so. The parser allows one to control which plot to create when running the script. By default, none will be created so please make sure to specify which plot you would like to make. If a save directory (`--save_dir`) is not specified, plots will not be saved but only output. 
@@ -83,6 +83,6 @@ Make sure to set `--vary_radii` to False (which is the default), since if this i
 
 This will create a plot of every 10th snapshot, quickening the process, and make a movie from those plots. Include ``--codec avc1`` when calling `moviemaker.py` for a much lighter video, but note the requirement mentioned above.
 
-Congratulations, you've ran a simulation and created a video of it! You can now also recreate our plots using e.g. `data_processing.py`, though this won't be very interesting, so save yourself some time and only do this for good runs. 
+Congratulations, you've ran a simulation and created a video of it! You can now also recreate our plots using e.g. `data_processing.py`, though this won't be very interesting for such a short simulation, so save yourself some time and only do this for longer runs. 
 
 For any questions, please feel free to contact us.

@@ -9,9 +9,9 @@ from amuse.io import read_set_from_file
 import os
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
-from amuse.lab import Particles, Particle
+from amuse.lab import Particle
 from tqdm import tqdm
-from scipy.optimize import curve_fit
+# from scipy.optimize import curve_fit
 import argparse
 from plotter import * # Importing also changes mpl.rcParams to make plots nice
 
@@ -316,21 +316,23 @@ def energy_error_plot(root: str, savedir: str | None = None):
             arrays.append(arr)
 
         times, grav_energy, _, _, _ = arrays # Unpack list of arrays
-        grav_energy_error = (grav_energy - grav_energy[0]) / grav_energy[0]
+        grav_energy_error = np.abs((grav_energy - grav_energy[0]) / grav_energy[0])
+        print(np.max(grav_energy_error))
 
         rmin,rmax = os.path.split(all_paths[0])[-1].strip('.npy').split('-')[-2:] # Extract rmin and rmax from filepath
         rmin,rmax = float(rmin),float(rmax)
         
         try:
-            axes.plot(times,grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU')
+            axes.plot(times,grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU', lw=1)
         except:
-            axes.plot(np.arange(len(grav_energy_error)),grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU')
-        axes.set(xlabel='Time [yr]',ylabel=r'Gravity energy error [J]')
-        axes.semilogx()
+            axes.plot(np.arange(len(grav_energy_error)),grav_energy_error, label = r'$R: $' + f'{rmin:.2f}-{rmax:.2f} AU', lw=1)
+        axes.set(xlabel='Time [yr]',ylabel=r'Gravity energy error')
+        axes.loglog()
+        axes.set_yticks(np.logspace(-11, -5, 4, 10), [r"$10^{-11}$",r"$10^{-9}$",r"$10^{-7}$",r"$10^{-5}$"])
         
     if len(run_paths) > 1:
         handles,labels = axes.get_legend_handles_labels()
-        axes.legend(handles,labels,frameon=False, loc='center left')
+        axes.legend(handles,labels,frameon=False)
 
     fig.tight_layout()
 
@@ -348,7 +350,7 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
     #given a list of roots, merges them into one Nbound vs time plot
     #assumes every root has only a single run in it and that the roots all pertain to runs with the same rmin and rmax
 
-    fig,ax = plt.subplots(figsize=(8,6))
+    fig,ax = plt.subplots()
     # fig.suptitle(r'$R_{\rm min}=$' + f'{rmin:.2f} AU,' + r'$\, R_{\rm max}=$' + f'{rmax:.2f} AU',fontsize = 28)
     for root in roots:
         # Extract the initial number of SPH particles in the disk from filename 
@@ -395,7 +397,7 @@ def hydro_validation_plot(roots: list, savedir: str | None = None):
     ax.set(xlabel = 'Time [yr]', ylabel = r'$f_\text{bound}$')
     ax.semilogx()
     ax.grid()
-    ax.legend(loc='lower left',frameon=False, ncols=1, fontsize=16)
+    ax.legend(loc='lower left',frameon=False, ncols=1, fontsize=13.5)
     if savedir is not None:
         filename = f'{savedir}/hydro_validation.pdf'
         plt.savefig(filename,bbox_inches='tight')
