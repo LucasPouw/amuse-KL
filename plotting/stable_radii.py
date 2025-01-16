@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from amuse.units import units
 from plotter import * #to change rc params
 
+
 def hill_radius(mass_low, mass_high, semimajor_axis, eccentricity):
     """
     Calculates the Hill sphere radius for a low-mass object orbiting a high-mass object.

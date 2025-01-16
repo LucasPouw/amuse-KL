@@ -15,10 +15,6 @@ if 'amuse-KL' in os.getcwd():
     os.chdir('..' ) # Move one directory upwards to avoid saving stuff in the github repo if relevant
 
 
-# Rmin_stable = 6.55 |units.AU  # minimum stable radius from MA criterion (TODO: change to couple with stable_radii.ipynb)
-# Rmax_stable = 13.35 |units.AU  # maximum stable radius from Hill radius (TODO: ^^)
-
-
 def orbital_period(mass, radius):
     """ Calculates orbital period of circularly orbiting body.
 
