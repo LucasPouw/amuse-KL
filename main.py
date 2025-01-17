@@ -163,6 +163,8 @@ if __name__ == '__main__':
 
     else:
 
+        print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
+
         # The vary_radii argument controls whether we use an additional stopping condition that stops the sim when half the disk has
         # been ejected from the system. If this is the case, we shrink the disk and re-start the run (ergo varying the radii). 
 
@@ -187,9 +189,9 @@ if __name__ == '__main__':
             Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
             np.save(Nbound_filepath, N_bound_over_time)
 
-        else: # Run with additional stopping condition
+        else:
 
-            print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
+            print('DOING MULTIPLE GRAVHYDRO RUNS, SHRINKING THE DISK EACH TIME BY 10%')
 
             # Since we do several runs now, save snapshots in a folder pertaining to the simulation in question
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
