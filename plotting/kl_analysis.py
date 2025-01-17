@@ -66,7 +66,24 @@ def average_every(array, decimation):
 
 
 def _check_orbital_element_files_binary(bin_root: str, sin_root: str, binary_snapshot_path: str, single_snapshot_path: str):
+    """
+    Checks for the existence of precomputed orbital element files for both binary and single-star cases.
+    If the files are not found, the function generates and saves them by processing the simulation snapshots.
 
+    Args:
+        bin_root (str): Directory where the simulation output for the binary star system is stored.
+        sin_root (str): Directory where the simulation output for the single-star system is stored.
+        binary_snapshot_path (str): Path to the snapshot files for the binary+disk simulation.
+        single_snapshot_path (str): Path to the snapshot files for the single+disk simulation.
+
+    Returns:
+        tuple: Containing arrays for time evolution and orbital elements:
+            - bin_time (np.ndarray): Time array for the binary system.
+            - sin_time (np.ndarray): Time array for the single-star system.
+            - eccs_single, incs_single, ascs_single, peris_single (np.ndarray): Orbital elements for the single-star disk.
+            - eccs_disk, incs_disk, ascs_disk, peris_disk (np.ndarray): Orbital elements for the binary disk.
+            - eccs_binary, incs_binary, ascs_binary, peris_binary (np.ndarray): Orbital elements for the binary system itself.
+    """
     binary_elements = ['eccs','incs','ascs','peris',                                  # Disk orbital elements around binary
                          'eccs-binary', 'incs-binary', 'ascs-binary', 'peris-binary'] # Binary orbital elements
     single_elements = ['eccs-single', 'incs-single', 'ascs-single', 'peris-single']   # Disk orbital elements around a single star
@@ -125,15 +142,20 @@ def _check_orbital_element_files_binary(bin_root: str, sin_root: str, binary_sna
 
 
 def KL_effect_plot(bin_root: str, sin_root: str, binary_snapshot_path: str, single_snapshot_path: str, file_path: str | None = None):
-    """ Creates a plot of the von Zeipel-Lidov-Kozai effect on orbital parameters of the disk, given the root in which simulation output is stored.
-        If the necessary orbital elements are not yet saved in the directory, they will be calculated here.
-        STRONGLY recommended to do this only for a run with a single snapshot folder specified as this function takes a while when running for the first time.
+    """
+    Plots the von Zeipel-Lidov-Kozai effect on the orbital parameters of the disk for binary and single-star cases.
+    If required orbital elements are missing, they will be computed first.
 
     Args:
+        bin_root (str): Directory where the simulation output for the binary star system is stored.
+        sin_root (str): Directory where the simulation output for the single-star system is stored.
+        binary_snapshot_path (str): Path to the snapshot files for the binary+disk simulation.
+        single_snapshot_path (str): Path to the snapshot files for the single+disk simulation.
+        file_path (str | None, optional): File path to save the generated plot. If None, the plot is displayed but not saved.
     """
     bin_time, sin_time, eccs_single, incs_single, ascs_single, peris_single, eccs_disk, incs_disk, ascs_disk, peris_disk, eccs_binary, incs_binary, ascs_binary, peris_binary = _check_orbital_element_files_binary(bin_root, sin_root, binary_snapshot_path, single_snapshot_path)
 
-    N = 500
+    N = 500  # TODO: put this in the parser
     fig, ax = plt.subplots(3, 1, figsize=(10, 18))
     plot_ang_ecc(ax[0], average_every(bin_time, N) | units.yr, average_every(incs_binary, N) | units.deg, average_every(ascs_binary, N) | units.deg, average_every(peris_binary, N) | units.deg, average_every(eccs_binary, N), legend_kwargs={'loc': 'upper right'})
     plot_ang_ecc(ax[1], average_every(bin_time, N) | units.yr, average_every(incs_disk, N) | units.deg, average_every(ascs_disk, N) | units.deg, average_every(peris_disk, N) | units.deg, average_every(eccs_disk, N))

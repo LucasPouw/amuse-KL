@@ -15,12 +15,6 @@ from amuse.units.quantities import Quantity, ScalarQuantity, VectorQuantity
 from tqdm import tqdm   
 import matplotlib as mpl
 
-# Move working directory one directory upwards (if running from the repo) to avoid saving anything in the github repo
-if __name__ == '__main__':
-    if 'amuse-KL' in os.getcwd(): 
-        os.chdir('..' ) 
-    print(f'Creating image folder in: {os.getcwd()}\n')
-
 # We define some properties for the figures
 SMALL_SIZE = 10 * 2 
 MEDIUM_SIZE = 12 * 2
@@ -287,20 +281,20 @@ def plot_binary_disk_arrow(axes:mpl.axes.Axes, particle_set: Particles, lim: int
   
 
 if __name__ == '__main__':
-    # Initialize parser for the plotter functionality. The file_dir arg must be a full path
+    # Initialize parser for the plotter functionality. 
     parser = argparse.ArgumentParser(description='Make relevant plots from HDF5 files')
-    parser.add_argument('--file_dir',type=str,default=os.getcwd(),help='Directory where HDF5 files are stored.')
+    parser.add_argument('--snapshot_dir',type=str,default=os.getcwd(),help='Full path to directory where HDF5 snapshots are stored.')
     parser.add_argument('--step_size',type=int,default=100,help='Generate a plot every step_size snapshot.')
     parser.add_argument('--no_disk', type = bool, default = False, help = 'Boolean to specify if simulation is with or without disk.')
     args = parser.parse_args()
 
-    # Move one directory up from the given file_dir so as not to save plots where snapshots are stored
-    os.chdir(args.file_dir) 
+    # Move one directory up from the given snapshot_dir so as not to save plots where snapshots are stored
+    os.chdir(args.snapshot_dir) 
     os.chdir('..')    
     print(f'Moving to {os.getcwd()}')
 
     # Create name of (new) image dir
-    image_tail = args.file_dir.split('/')[-2].split('-')[1:]
+    image_tail = args.snapshot_dir.split('/')[-2].split('-')[1:]
     image_dir = 'images-' + image_tail[0] + '-' + image_tail[1] 
     if args.no_disk:
         image_dir += '-' + 'no_disk'
@@ -316,12 +310,12 @@ if __name__ == '__main__':
                 os.remove(f)
 
     # Loading in data
-    unsorted_datafiles = glob.glob(args.file_dir + '/*.hdf5')
+    unsorted_datafiles = glob.glob(args.snapshot_dir + '/*.hdf5')
     file_numbers = [filename.split('_')[-1].split('.')[0] for filename in unsorted_datafiles]
     file_numbers = list(map(int, file_numbers))
     _, datafiles = zip(*sorted(zip(file_numbers, unsorted_datafiles)))
-    
-    try:
+
+    try:  # TODO: exception always raised
         time_glob = glob.glob(os.getcwd()+f'/times-year-{image_tail[0][4:]}*-{image_tail[1][4:]}*.npy')[0]  # Requires the run to have succeeded such that a time array exists
         times = np.load(time_glob, allow_pickle=True)
         try:  # Check if there are units to remove

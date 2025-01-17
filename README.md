@@ -1,6 +1,6 @@
 # Disk stability and von Zeipel-Lidov-Kozai effect in AMUSE
 
-Recently, the detection of an S-star binary around Sgr A* has been reported (Peissker et al., [2024](https://www.nature.com/articles/s41467-024-54748-3)). This system could have a circumbinary disk, which is suprising given the dynamic nature of the Galactic Center. The code in this repository can be used to test how long a disk can survive around a stellar binary that is orbiting a supermassive black hole (SMBH). Specifically, it allows the user to simulate a circumbinary disk. In such a system, the von Zeipel-Lidov-Kozai mechanism will have an effect on the binary and possibly on the disk, which can be investigated with this code as well. The simulation is implemented with a Bridged gravito-hydrodynamic code using the AMUSE suite. For more details on AMUSE, as well as installation requirements, we refer to [the AMUSE GitHub](https://github.com/spzwart/AMUSE), [the AMUSE book](https://iopscience.iop.org/book/mono/978-0-7503-1320-9) and the papers by Portegies Zwart et al. [(2009)](https://www.sciencedirect.com/science/article/abs/pii/S1384107608001085?via%3Dihub), Portegies Zwart et al. [(2013)](https://www.sciencedirect.com/science/article/abs/pii/S0010465512003116?via%3Dihub) and Pelupessy et al. [(2013)](https://www.aanda.org/articles/aa/full_html/2013/09/aa21252-13/aa21252-13.html).
+Recently, the detection of an S-star binary around Sgr A* has been reported (Peissker et al., [2024](https://www.nature.com/articles/s41467-024-54748-3)). This system could have a circumbinary disk, which is suprising given the dynamic nature of the Galactic Center. The code in this repository can be used to test how long a disk can survive around a stellar binary that is orbiting a supermassive black hole (SMBH). Specifically, it allows the user to simulate a circumbinary disk. In such a system, the von Zeipel-Lidov-Kozai (vZLK) mechanism will have an effect on the binary and possibly on the disk, which can be investigated with this code as well. The simulation is implemented with a Bridged gravito-hydrodynamic code using the AMUSE suite. For more details on AMUSE, as well as installation requirements, we refer to [the AMUSE GitHub](https://github.com/spzwart/AMUSE), [the AMUSE book](https://iopscience.iop.org/book/mono/978-0-7503-1320-9) and the papers by Portegies Zwart et al. [(2009)](https://www.sciencedirect.com/science/article/abs/pii/S1384107608001085?via%3Dihub), Portegies Zwart et al. [(2013)](https://www.sciencedirect.com/science/article/abs/pii/S0010465512003116?via%3Dihub) and Pelupessy et al. [(2013)](https://www.aanda.org/articles/aa/full_html/2013/09/aa21252-13/aa21252-13.html).
 
 ## Contributors
 - Yannick Badoux (badoux@strw.leidenuniv.nl)
@@ -31,7 +31,7 @@ If you want to simulate a single star with a disk that has inner radius 3 AU and
 
 Currently, Huayno (Jänes et al., [2014](https://www.aanda.org/articles/aa/full_html/2014/10/aa23831-14/aa23831-14.html)) and Hermite (Makino, [1991](https://ui.adsabs.harvard.edu/abs/1991ApJ...369..200M/abstract)) are supported gravity solvers. The default is Huayno, but you can specify `--grav_code Hermite` to use Hermite. The only supported hydrodynamics solver is Fi (Hernquist and Katz, [1989](https://ui.adsabs.harvard.edu/abs/1989ApJS...70..419H/abstract); Gerritsen and Icke, [1997](https://adsabs.harvard.edu/full/1997A%26A...325..972G); Pelupessy et al., [2004](https://www.aanda.org/articles/aa/abs/2004/28/aa0071-04/aa0071-04.html)).
 
-For convenience, here is a list of all arguments that can be specified:
+Here is a list of all arguments that can be specified:
 `--m_smbh <BH mass>`\
 `--a_out <semi-major axis of outer orbit>`\
 `--e_out <eccentricity of outer orbit>`\
@@ -65,24 +65,26 @@ A series of plots can be made with `plotter.py`. Again, this can be controlled w
 After the plots have been made, the script `moviemaker.py` can make all images in a specified directory into a movie, where you can specify the FPS, height, width and codec of the movie (see source code for more details). FFmpeg is required to do this. NOTE: if you want to use the codec 'avc1', which is much lighter than the default 'XVID', opencv must be installed via conda-forge. This is *not* included in `requirements.txt`. To install, run: ```conda install -c conda-forge opencv```. Some example videos of longer simulations can be found [here](https://www.youtube.com/watch?v=Xs5jYBupo9k&list=PLkoB31MzhMyrKmQkAPG8ySSVu7n3PrlXE). 
 
 ### Data analysis
-Most of the figures in the report can be reproduced by running `data_processing.py`. Please have a thorough look at the parser in the source code before doing so. The parser allows one to control which plot to create when running the script. By default, none will be created so please make sure to specify which plot you would like to make. If a save directory (`--save_dir`) is not specified, plots will not be saved but only output. 
+Most of the figures in the report can be reproduced by running `data_processing.py`. The parser allows one to control which plot to create when running the script. By default, none will be created so please make sure to specify which plot you would like to make. If a save directory (`--save_dir`) is not specified, plots will not be saved but only shown. 
 
-Some additional figures are not present in this file in an attempt to not clutter the parser too much. The von Zeipel-Lidov-Kozai [plot](https://github.com/LucasPouw/amuse-KL/blob/main/figures/vzlk_plot.pdf) may be recreated by running `kl_analysis.py`. Note that since this needs information of many orbital elements which are not gathered during simulation, running this for the first time on the output of a given simulation will take a while (but then the output is saved and the plot can be recreated quickly). Moreover, figure 1 from the report may be recreated by running `stable_radii.py`. 
+The vZLK [plot](https://github.com/LucasPouw/amuse-KL/blob/main/figures/vzlk_plot.pdf) may be recreated by running `kl_analysis.py`. Note that since this needs information of many orbital elements which are not gathered during simulation, running this for the first time on the output of a given simulation will take a while (but then the output is saved and the plot can be recreated quickly). Moreover, figure 1 from the report may be recreated by running `stable_radii.py`. 
 
 ## A simple test case
-To test that the code works well for you, we suggest running the following commands in the terminal as a (relatively) quick test. This, depending on your machine, might still take some time - but such is the life of one doing computer simulations. Note that the given terminal commands here are for a Linux machine.
+To test that the code works well for you, we suggest running the following commands in the terminal as a (relatively) quick test.
 
-First, set-up and simulate a simple, low-resolution disk (100 SPH particles) around the binary and run it for at most 5 kyr by running:
+First, change the `OMP_NUM_THREADS` variable in your terminal to enable multithreading.
 
-```python3 main.py --t_end 5000 --n_disk 100```
+Then, simulate a single, low-resolution disk (100 SPH particles) around a binary and evolve it for at most 1 kyr (or until half the disk particles are unbound) by running:
 
-Make sure to set `--vary_radii` to False (which is the default), since if this is true you may run more simulations than desired, since the code will try to find a stable configuration. Again, you may also specify the simulation output by giving a full path to `--file_dir`. Once the simulation is complete, you can create plots and a video of your simulation by running the following:
+```python3 main.py --t_end 1000 --n_disk 100```
 
-```python3 plotter.py --snapshot_dir <path/to/snapshot/folder/> --step_size 10 ``` \
+Once the simulation is complete, you can create plots and a video of your simulation by running the following:
+
+```python3 plotting/plotter.py --snapshot_dir <path/to/snapshot/folder/> --step_size 10 ``` \
 ```python3 moviemaker.py --image_dir <path/to/image/folder/> --video_name <your_file_name> ```
 
 This will create a plot of every 10th snapshot, quickening the process, and make a movie from those plots. Include ``--codec avc1`` when calling `moviemaker.py` for a much lighter video, but note the requirement mentioned above.
 
-Congratulations, you've ran a simulation and created a video of it! You can now also recreate our plots using e.g. `data_processing.py`, though this won't be very interesting for such a short simulation, so save yourself some time and only do this for longer runs. 
+Congratulations, you've ran a simulation and created a video of it! You can now also recreate our plots using e.g. `data_processing.py`. 
 
 For any questions, please feel free to contact us.

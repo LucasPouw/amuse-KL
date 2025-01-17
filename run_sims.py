@@ -5,14 +5,13 @@ from amuse.community.fi.interface import Fi
 from amuse.couple import bridge
 from amuse.community.huayno.interface import Huayno
 from amuse.community.hermite.interface import Hermite
-from amuse.community.hermite_grx.interface import HermiteGRX
 from amuse.ext.composition_methods import *
 from amuse.units import units,constants
 from amuse.io import write_set_to_file
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particle
 import numpy as np
-from plotter import get_com, get_com_vel
+from plotting.plotter import get_com, get_com_vel
 
 
 class SimulationRunner():
@@ -379,7 +378,8 @@ class SimulationRunner():
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
         self.verbose_timestep = 10 * self.diagnostic_timestep
 
-        while (model_time < self.time_end) and (N_bound > (N_init // 2)): #add condition that num. of bound particles should not be halved
+        max_factor_lost = 2  # TODO: put this in the parser
+        while (model_time < self.time_end) and (N_bound > (N_init // max_factor_lost)): #add condition that num. of bound particles should not be halved
             model_time += self.diagnostic_timestep
                         
             gravhydro.evolve_model(model_time)
