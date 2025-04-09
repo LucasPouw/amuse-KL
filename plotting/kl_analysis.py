@@ -178,27 +178,35 @@ def KL_ecc_vs_cos_peri(bin_root: str, sin_root: str, binary_snapshot_path: str, 
     print(np.min(eccs_binary), 'MINIMUM ECC')
     every_time = 100  # TODO: put this in the parser
     fig, ax = plt.subplots(figsize=(8,6))
-    plot_ecc_cos_ang(ax, ang=average_every(peris_binary, every_time) | units.deg, ecc=average_every(eccs_binary, every_time), color='red', label=r'Binary')
+    plot_ecc_cos_ang(ax, ang=average_every(peris_binary, every_time)[:480] | units.deg, ecc=average_every(eccs_binary, every_time)[:480], color='red', label=r'Binary')
     plot_ecc_cos_ang(ax, ang=average_every(peris_disk, every_time) | units.deg, ecc=average_every(eccs_disk, every_time), color='blue', label=r'Disk')
 
-    N_particles_plot = 10
+    N_particles_plot = 3
     every_time_disk = 100
+    # stop_time = 50000
     # Get the orbits of multiple disk particles
-    all_files = get_sorted_files(binary_snapshot_path)
-    Nfiles = len(all_files)
-    many_disk_eccs = np.zeros((Nfiles, N_particles_plot))
-    many_disk_peris = np.zeros((Nfiles, N_particles_plot))
-    for i, datafile in tqdm(enumerate(all_files), total=Nfiles):
-        snapshot = read_set_from_file(datafile)
-        _, _, _, ecc, _, _, _, peri = get_disk_orbital_elements(snapshot)
-        bound = ecc < 1
-        many_disk_eccs[i,:] = ecc[bound][:N_particles_plot]
-        many_disk_peris[i,:] = peri[bound][:N_particles_plot].value_in(units.deg)
-        if i == 50000:
-            break
+    # all_files = get_sorted_files(binary_snapshot_path)
+    # final_file = all_files[stop_time]
+    # _, _, _, final_ecc, _, _, _, _ = get_disk_orbital_elements(read_set_from_file(final_file))
+    # final_bound = final_ecc < 1
+    # plot_particles = np.array([i for i, x in enumerate(final_bound) if x])[:N_particles_plot]  # Get indeces of first N particles that stay bound until stop_time
+
+    # Nfiles = len(all_files)
+    # many_disk_eccs = np.zeros((Nfiles, N_particles_plot))
+    # many_disk_peris = np.zeros((Nfiles, N_particles_plot))
+    # for i, datafile in tqdm(enumerate(all_files), total=Nfiles):
+    #     snapshot = read_set_from_file(datafile)
+    #     _, _, _, ecc, _, _, _, peri = get_disk_orbital_elements(snapshot)
+    #     many_disk_eccs[i,:] = ecc[plot_particles]
+    #     many_disk_peris[i,:] = peri[plot_particles].value_in(units.deg)
+    #     if i == stop_time:
+    #         break
     
-    np.save('many_disk_eccs.npy', many_disk_eccs)
-    np.save('many_disk_peris.npy', many_disk_peris)
+    # np.save('many_disk_eccs.npy', many_disk_eccs)
+    # np.save('many_disk_peris.npy', many_disk_peris)
+
+    many_disk_peris = np.load('many_disk_peris.npy')
+    many_disk_eccs = np.load('many_disk_eccs.npy')
 
     # Average every few years and plot
     for i in range(N_particles_plot):
@@ -229,5 +237,5 @@ if __name__ == '__main__':
     else:
         file_path = args.file_path
 
-    # KL_effect_plot(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)
+    KL_effect_plot(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)
     KL_ecc_vs_cos_peri(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)
