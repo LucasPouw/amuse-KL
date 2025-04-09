@@ -173,6 +173,48 @@ def KL_effect_plot(bin_root: str, sin_root: str, binary_snapshot_path: str, sing
     plt.show()
 
 
+def KL_ecc_vs_cos_peri(bin_root: str, sin_root: str, binary_snapshot_path: str, single_snapshot_path: str, file_path: str | None = None):
+    bin_time, sin_time, eccs_single, incs_single, ascs_single, peris_single, eccs_disk, incs_disk, ascs_disk, peris_disk, eccs_binary, incs_binary, ascs_binary, peris_binary = _check_orbital_element_files_binary(bin_root, sin_root, binary_snapshot_path, single_snapshot_path)
+    print(np.min(eccs_binary), 'MINIMUM ECC')
+    every_time = 100  # TODO: put this in the parser
+    fig, ax = plt.subplots(figsize=(8,6))
+    plot_ecc_cos_ang(ax, ang=average_every(peris_binary, every_time) | units.deg, ecc=average_every(eccs_binary, every_time), color='red', label=r'Binary')
+    plot_ecc_cos_ang(ax, ang=average_every(peris_disk, every_time) | units.deg, ecc=average_every(eccs_disk, every_time), color='blue', label=r'Disk')
+
+    N_particles_plot = 10
+    every_time_disk = 100
+    # Get the orbits of multiple disk particles
+    all_files = get_sorted_files(binary_snapshot_path)
+    Nfiles = len(all_files)
+    many_disk_eccs = np.zeros((Nfiles, N_particles_plot))
+    many_disk_peris = np.zeros((Nfiles, N_particles_plot))
+    for i, datafile in tqdm(enumerate(all_files), total=Nfiles):
+        snapshot = read_set_from_file(datafile)
+        _, _, _, ecc, _, _, _, peri = get_disk_orbital_elements(snapshot)
+        bound = ecc < 1
+        many_disk_eccs[i,:] = ecc[bound][:N_particles_plot]
+        many_disk_peris[i,:] = peri[bound][:N_particles_plot].value_in(units.deg)
+        if i == 50000:
+            break
+    
+    np.save('many_disk_eccs.npy', many_disk_eccs)
+    np.save('many_disk_peris.npy', many_disk_peris)
+
+    # Average every few years and plot
+    for i in range(N_particles_plot):
+        avg_peris = average_every(many_disk_peris[:, i], every_time_disk)
+        avg_eccs = average_every(many_disk_eccs[:, i], every_time_disk)
+        plot_ecc_cos_ang(ax, ang=avg_peris | units.deg, ecc=avg_eccs, alpha=0.3)
+
+    ax.vlines(np.cos(np.deg2rad(311.75)), 0, 1, color='red', linewidth=2, linestyle='dashed', label=r'$\cos(\omega_{\rm in, 0})$')
+    ax.hlines(0.45, -1, 1, color='red', linewidth=2, linestyle='dotted', label=r'$e_{\rm in, 0}$')
+    ax.set_xlabel(r'$\cos(\omega)$')
+    ax.legend()
+    if file_path is not None:
+        plt.savefig(file_path, bbox_inches='tight')
+    plt.show()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make plots comparing the KL effect in disks and binaries')
     parser.add_argument('--bin_snap_path', type = str, help = 'Directory in which snapshots to the binary+disk run can be found for the KL plot.', required=True)
@@ -187,4 +229,5 @@ if __name__ == '__main__':
     else:
         file_path = args.file_path
 
-    KL_effect_plot(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)
+    # KL_effect_plot(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)
+    KL_ecc_vs_cos_peri(args.bin_root, args.sin_root, args.bin_snap_path, args.sin_snap_path, file_path)

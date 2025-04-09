@@ -81,6 +81,15 @@ def get_com_vel(orbiter):
     return com
 
 
+def plot_ecc_cos_ang(ax: mpl.axes.Axes, ang: VectorQuantity, ecc: np.ndarray, **kwargs) -> None:
+    """Create plot of eccentricity versus cos(angle), where the angle can be any of the three orbital angles."""
+    plt.plot(np.cos(ang.value_in(units.rad)), ecc, **kwargs)
+    ax.set_ylabel(r'$e$')
+    ax.set_ylim(0,1)
+    ax.set_xlim(-1, 1)
+    return
+
+
 def plot_inc_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, ecc: np.ndarray) -> None:
     """Create plot of inclination and eccentricity over time given an axis to plot on.
 
@@ -105,6 +114,7 @@ def plot_inc_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, e
     inc_ax.tick_params(axis='y', labelcolor='blue')
     inc_ax.set_ylim(0, 180)
     return
+
 
 def plot_ang_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, asc: VectorQuantity,
                   peri: VectorQuantity, ecc: np.ndarray, legend_kwargs=None) -> None:
@@ -138,6 +148,7 @@ def plot_ang_ecc(ax: mpl.axes.Axes, time: VectorQuantity, inc: VectorQuantity, a
     if legend_kwargs:
         plt.legend(**legend_kwargs)
     return
+
 
 def plot_smbh_and_stars(axes:mpl.axes.Axes, particle_set: Particles, lim: int = 10) -> None:
     """    
