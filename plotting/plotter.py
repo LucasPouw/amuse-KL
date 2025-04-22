@@ -12,7 +12,6 @@ import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particles, Particle
 from amuse.units.quantities import Quantity, ScalarQuantity, VectorQuantity
-from tqdm import tqdm   
 import matplotlib as mpl
 
 # We define some properties for the figures
@@ -345,7 +344,7 @@ if __name__ == '__main__':
     n_bound_list = []
 
     print(f'Processing {len(datafiles)} snapshots, making a plot of every {args.step_size}...')
-    for time, datafile in tqdm(zip(times[::args.step_size], datafiles[::args.step_size])): #every args.step_size instance is looped over
+    for time, datafile in zip(times[::args.step_size], datafiles[::args.step_size]): #every args.step_size instance is looped over
         data = read_set_from_file(datafile)  # Full particle set at single timestep
 
         # Get orbital parameters in case of a simulation with a disk

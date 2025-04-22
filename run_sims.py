@@ -12,6 +12,7 @@ from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particle
 import numpy as np
 from plotting.plotter import get_com, get_com_vel
+import time
 
 
 class SimulationRunner():
@@ -181,65 +182,6 @@ class SimulationRunner():
         gravhydro = self._initialize_bridge(gravity, hydro)
 
         return gravity, hydro, gravhydro, channel, bodies
-    
-
-    def run_gravity_hydro_bridge(self, save_folder):
-        """
-        Run the gravity-hydro simulation until the specified end time without additional stopping conditions.
-
-        Parameters:
-        -------------
-        save_folder : str
-            Directory to save snapshots and diagnostics.
-
-        Returns:
-        ---------
-        tuple:
-            - grav_energy (list of amuse.units.quantity.Quantity): Gravitational energy over time.
-            - hydro_energy (list of amuse.units.quantity.Quantity): Hydrodynamical energy over time.
-            - times (list of amuse.units.quantity.Quantity): Diagnostic times.
-        """
-        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
-
-        grav_energy = [] | units.J
-        hydro_energy = [] | units.J
-        times = [] | units.yr
-        
-        initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
-        grav_energy.append(gravity.get_total_energy())
-        hydro_energy.append(hydro.get_total_energy())
-
-        model_time = 0 | units.Myr
-        times.append(model_time)
-
-        #controls the printing in the terminal
-        self.verbose_timestep = 10 * self.diagnostic_timestep
-
-        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
-        while (model_time < self.time_end): # Stopping condition is only pre-specified simulation endtime
-
-            model_time += self.diagnostic_timestep
-
-            gravhydro.evolve_model(model_time)
-            channel["to_stars"].copy()
-            channel["to_disk"].copy()
-
-            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
-            grav_energy.append(gravity.get_total_energy())
-            hydro_energy.append(hydro.get_total_energy())
-            times.append(model_time)
-            
-            # So as not to clutter up the terminal too much
-            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)): 
-                print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
-            
-            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
-
-        gravity.stop()
-        hydro.stop()
-
-        return grav_energy, hydro_energy, times
-
 
     def get_bound_disk_particles(self, particle_system):
         """
@@ -329,7 +271,7 @@ class SimulationRunner():
         return N_bound, len(unbound_disk_particles), num_inner_unbound, num_outer_unbound
     
 
-    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init):
+    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init, SLURM_time_limit=0):
         """
         Runs the gravity-hydro simulation until specified end-time or until an additional stopping condition is reached.
         The additional stopping condition is defined as that the code will stop as soon as at least half the particles of the disk
@@ -353,6 +295,9 @@ class SimulationRunner():
             - hydro_energy (list of amuse.units.quantity.Quantity): Hydrodynamical energy over time.
             - times (list of amuse.units.quantity.Quantity): Diagnostic times.
         """
+        #calculate the time limit for the simulation
+        start_time = time.time()
+        end_time = start_time + SLURM_time_limit * 60 * 60 - 10*60 # Convert hours to seconds, leave 10 minutes
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
 
         grav_energy = [] | units.J
@@ -404,6 +349,14 @@ class SimulationRunner():
                 print()
 
             write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            
+            #check time
+            if SLURM_time_limit > 0:
+                current_time = time.time()
+                if current_time >= end_time:
+                    print(f"Time limit reached, stopping simulation. Model time:{model_time.value_in(units.yr)} yr.")
+                    print(f"Last save file: {save_folder}/snapshot_{int(model_time.value_in(units.day))}.hdf5")
+                    break 
 
         gravity.stop()
         hydro.stop()

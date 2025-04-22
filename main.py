@@ -51,7 +51,8 @@ def get_parser():
     parser.add_argument('--file_dir',   type=str,   default=os.getcwd(),    help='Directory for the folder containing all output')
     parser.add_argument('--no_disk',    type=bool,  default=False,          help='If True, no disk will be created. Simulation will be run using pure gravity.')
     parser.add_argument('--vary_radii', type=bool,  default=False,          help='If True, will start simulating with Rmin and Rmax for the disk and introduce stopping conditions for unbound particles, reducing the disk width and re-starting the simulation.')
-    parser.add_argument('--grav_code',  type=str,   default='Huayno',       help='Gravity code to use. Allowed choices are Huayno, Hermite and HermiteGRX', choices= ['Huayno','Hermite','HermiteGRX'])
+    parser.add_argument('--grav_code',  type=str,   default='Hermite',      help='Gravity code to use. Allowed choices are Huayno, Hermite and HermiteGRX', choices= ['Huayno','Hermite','HermiteGRX'])
+    parser.add_argument('--SLURM_time_limit', type=float, default=0,        help='Time limit for SLURM job in hours. If 0, no time limit is set.')
     return parser
 
 
@@ -87,9 +88,9 @@ if __name__ == '__main__':
     if not os.path.isdir(args.file_dir):
         os.mkdir(args.file_dir)
     else:
-        inp = None
-        while inp not in ['y', 'n']:
-            inp = input(f'Directory {args.file_dir} already exists. Do you want to erase the existing files? (y/n)')
+        inp = 'y'
+        # while inp not in ['y', 'n']:
+        #     inp = input(f'Directory {args.file_dir} already exists. Do you want to erase the existing files? (y/n)')
         if inp.lower() == 'y':
             print('Erasing...')
             shutil.rmtree(args.file_dir)
@@ -161,6 +162,8 @@ if __name__ == '__main__':
         np.save(args.file_dir + f'/energy-joules-rmin{args.r_min:.3f}-rmax{args.r_max:.3f}.npy', energy.value_in(units.J))
         np.save(args.file_dir + f'/times-year-rmin{args.r_min:.3f}-rmax{args.r_max:.3f}.npy', times.value_in(units.yr))
 
+
+#-----------------------STOP IF HALF DISK UNBOUND-----------------------#
     else:
 
         print('RUNNING WITH ADDITIONAL STOPPING CONDITION: IF HALF OR MORE OF THE SPH PARTICLES IN THE DISK IS UNBOUND, STOP.')
@@ -172,7 +175,6 @@ if __name__ == '__main__':
             print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
             os.mkdir(dir_current_run)
-            # grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge(dir_current_run) # Run code
             N_bound_over_time, N_lost_inner, N_lost_outer, sim_time, grav_energy, hydro_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
 
             # Save relevant data for later analysis
@@ -189,6 +191,8 @@ if __name__ == '__main__':
             Nbound_filepath = os.path.join(args.file_dir,f'Nbound_{ShaiHulud.disk_inner_radius.value_in(units.AU)}-{ShaiHulud.disk_outer_radius.value_in(units.AU)}.npy')
             np.save(Nbound_filepath, N_bound_over_time)
 
+
+#-----------------------VARYING RADII------------------------#
         else:
 
             print('DOING MULTIPLE GRAVHYDRO RUNS, SHRINKING THE DISK EACH TIME BY 10%')
