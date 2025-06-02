@@ -9,6 +9,7 @@ from amuse.ext.orbital_elements import generate_binaries
 from amuse.ext.protodisk import ProtoPlanetaryDisk
 from amuse.units import nbody_system
 import numpy as np
+from amuse.ext.sink import new_sink_particles
 
 
 class SystemMaker:
@@ -214,6 +215,9 @@ class SystemMaker:
                                           true_anomaly=true_anomaly)
         smbh.name = 'SMBH'
         orbiter.name = 'primary_star'
+
+        smbh.radius = 17 | units.Rsun
+        orbiter.radius = 4 | units.RSun
         return orbiter, smbh
     
 
@@ -237,6 +241,9 @@ class SystemMaker:
         
         primary.name = 'primary_star'
         secondary.name = 'secondary_star'
+
+        primary.radius = 4 | units.RSun
+        secondary.radius = 1.5 | units.RSun
         
         return primary, secondary
     
@@ -312,6 +319,9 @@ class SystemMaker:
             disk = self._make_disk(R)
             self.rotate_orbit(disk, self.mutual_inclination, self.inner_arg_of_periapse)  # Give disk same initial angles as binary
             self.move_particles_to_com(disk, orbiter)  # Disk should be around the binary COM or single star
+
+            sink_rads = [500, 0.5, 0.5] | units.AU
+            smbh_and_binary = new_sink_particles(smbh_and_binary, sink_radius = sink_rads)
 
             return smbh_and_binary, disk, converter
 

@@ -49,7 +49,7 @@ class SimulationRunner():
 
     def __init__(self, 
                  smbh_and_orbiter, 
-                 disk, 
+                 disk,
                  converter,
                  hydro_timestep,
                  gravhydro_timestep,
@@ -179,6 +179,12 @@ class SimulationRunner():
         channel.update({"from_disk": bodies.new_channel_to(hydro.particles)})
         channel.update({"to_disk": hydro.particles.new_channel_to(bodies)})
 
+        #for sinks
+        channel.update({"from_selfdisk": self.disk.new_channel_to(hydro.particles)})
+        channel.update({"to_selfdisk": hydro.particles.new_channel_to(self.disk)})
+        channel.update({"from_smbh_orb": self.smbh_and_orbiter.new_channel_to(gravity.particles)})
+        channel.update({"to_smbh_orb": gravity.particles.new_channel_to(self.smbh_and_orbiter)})
+
         gravhydro = self._initialize_bridge(gravity, hydro)
 
         return gravity, hydro, gravhydro, channel, bodies
@@ -298,57 +304,55 @@ class SimulationRunner():
         #calculate the time limit for the simulation
         start_time = time.time()
         end_time = start_time + SLURM_time_limit * 60 * 60 - 10*60 # Convert hours to seconds, leave 10 minutes
-        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()  
+        gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()
 
         grav_energy = [] | units.J
-        hydro_energy = [] | units.J
         times = [] | units.yr
         
-        initial_total_energy = gravity.get_total_energy() + hydro.get_total_energy()
+        initial_total_energy = gravity.get_total_energy()
         grav_energy.append(gravity.get_total_energy())
-        hydro_energy.append(hydro.get_total_energy())
 
         model_time = 0 | units.Myr
         times.append(model_time)
 
-        N_bound = N_init
-        N_bound_over_time = []
-        N_inner, N_outer = 0, 0
-        self.already_unbound = []
-        self.Rhalf_values = []
-        self.unbound_dict = {}
+        accreted_count = 0
 
-        write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
+        # write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
-        self.verbose_timestep = 10 * self.diagnostic_timestep
+        self.verbose_timestep = 1 * self.diagnostic_timestep
 
         max_factor_lost = 2  # TODO: put this in the parser
-        while (model_time < self.time_end) and (N_bound > (N_init // max_factor_lost)): #add condition that num. of bound particles should not be halved
+        while (model_time < self.time_end): #add condition that num. of bound particles should not be halved
+            diag_start_time = time.time()
+
             model_time += self.diagnostic_timestep
                         
             gravhydro.evolve_model(model_time)
             channel["to_stars"].copy()
             channel["to_disk"].copy()
+            channel["to_selfdisk"].copy()
+            channel["to_smbh_orb"].copy()
 
-            relative_dE = initial_total_energy / (gravity.get_total_energy() + hydro.get_total_energy()) - 1
+            accreted = self.smbh_and_orbiter.accrete(self.disk) # find which particles have been accreted
+            if len(accreted) > 0:
+                print(accreted)
+            accreted_count += len(accreted)
+
+            bodies.remove_particles(accreted)
+            self.disk.synchronize_to(hydro.particles) #also remove them from particles in Fi
+
+            relative_dE = initial_total_energy / (gravity.get_total_energy()) - 1
             grav_energy.append(gravity.get_total_energy())
-            hydro_energy.append(hydro.get_total_energy())
             times.append(model_time)
 
-            #find the number of bound particles as well as new unbound particles and if they were inner or outer particles
-            N_bound, N_unbound, new_n_inwards, new_n_outwards = self.get_bound_disk_particles(bodies)
-            N_bound_over_time.append(N_bound)
-            N_inner += new_n_inwards
-            N_outer += new_n_outwards
+            # if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
+            print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
+            print(f"Number of accreted particles: {accreted_count}")
+            print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
+            print()
 
-            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
-                print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
-                print(f"#Bound: {N_bound}, #unbound {N_unbound}.")
-                print(f"Inner particles lost: {N_inner} and outer particles: {N_outer}.")
-                print()
-
-            write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+            # write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
             
             #check time
             if SLURM_time_limit > 0:
@@ -361,7 +365,7 @@ class SimulationRunner():
         gravity.stop()
         hydro.stop()
 
-        return N_bound_over_time, N_inner, N_outer, model_time, grav_energy, hydro_energy, times
+        return model_time, grav_energy, times
 
 
     def run_gravity_no_disk(self, save_folder):
