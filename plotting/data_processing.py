@@ -9,10 +9,10 @@ import os
 import glob
 from amuse.ext.orbital_elements import get_orbital_elements_from_binaries
 from amuse.lab import Particle
-from tqdm import tqdm
+# from tqdm import tqdm
 # from scipy.optimize import curve_fit
 import argparse
-from plotter import * # Importing also changes mpl.rcParams to make plots nice
+from plotting.plotter import * # Importing also changes mpl.rcParams to make plots nice
 
 
 def dissect_system(particle_system):
@@ -77,7 +77,7 @@ def get_nbound_over_time(file_dir, save_name):
     (not recommended). This function should only be used for runs in which an unexpected crash caused the diagnostics to not be saved.
     """
     nbound = []
-    for datafile in tqdm(get_sorted_files(file_dir)):
+    for datafile in get_sorted_files(file_dir):
         snapshot = read_set_from_file(datafile)
         nbound.append(get_N_bound(snapshot))
 
@@ -537,7 +537,7 @@ def compare_nbound_plot(dirs: list = ['/data2/AMUSE-KL-vdvuurst-pouw-badoux/hydr
         filename = f'{savedir}/nbound_comparison'
         filename += '.pdf'
         plt.savefig(filename,bbox_inches='tight')
-    plt.show()
+    # plt.show()
             
 
 

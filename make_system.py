@@ -320,7 +320,7 @@ class SystemMaker:
             self.rotate_orbit(disk, self.mutual_inclination, self.inner_arg_of_periapse)  # Give disk same initial angles as binary
             self.move_particles_to_com(disk, orbiter)  # Disk should be around the binary COM or single star
 
-            sink_rads = [500, 0.5, 0.5] | units.AU
+            sink_rads = [17, 4, 2] | units.Rsun 
             smbh_and_binary = new_sink_particles(smbh_and_binary, sink_radius = sink_rads)
 
             return smbh_and_binary, disk, converter

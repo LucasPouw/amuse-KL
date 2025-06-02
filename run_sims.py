@@ -320,7 +320,7 @@ class SimulationRunner():
         # write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
-        self.verbose_timestep = 1 * self.diagnostic_timestep
+        self.verbose_timestep = 100 * self.diagnostic_timestep
 
         max_factor_lost = 2  # TODO: put this in the parser
         while (model_time < self.time_end): #add condition that num. of bound particles should not be halved
@@ -335,8 +335,6 @@ class SimulationRunner():
             channel["to_smbh_orb"].copy()
 
             accreted = self.smbh_and_orbiter.accrete(self.disk) # find which particles have been accreted
-            if len(accreted) > 0:
-                print(accreted)
             accreted_count += len(accreted)
 
             bodies.remove_particles(accreted)
@@ -346,13 +344,13 @@ class SimulationRunner():
             grav_energy.append(gravity.get_total_energy())
             times.append(model_time)
 
-            # if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
-            print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
-            print(f"Number of accreted particles: {accreted_count}")
-            print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
-            print()
+            if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
+                print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
+                print(f"Number of accreted particles: {accreted_count}")
+                print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
+                print()
 
-            # write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
+                write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
             
             #check time
             if SLURM_time_limit > 0:

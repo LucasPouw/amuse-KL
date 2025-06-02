@@ -56,8 +56,7 @@ def get_parser():
     return parser
 
 
-if __name__ == '__main__':
-    
+if __name__ == '__main__':   
     start = time.time() # We want to know how long the code runs for
 
     # Initialize args from terminal
@@ -80,24 +79,24 @@ if __name__ == '__main__':
     print(f'All output is saved in: {args.file_dir}')
     print(f'Current run is found in sub-directory {name}\n')
 
-    # if not os.path.isdir(args.file_dir):  # Check for output folder
-    #     os.mkdir(args.file_dir)
-    #     pass
+    if not os.path.isdir(args.file_dir):  # Check for output folder
+        os.mkdir(args.file_dir)
+        pass
 
     # Make folder for saving run with specified initial conditions
     args.file_dir += name
-    # if not os.path.isdir(args.file_dir):
-    #     os.mkdir(args.file_dir)
-    # else:
-    #     inp = 'y'
-    #     # while inp not in ['y', 'n']:
-    #     #     inp = input(f'Directory {args.file_dir} already exists. Do you want to erase the existing files? (y/n)')
-    #     if inp.lower() == 'y':
-    #         print('Erasing...')
-    #         shutil.rmtree(args.file_dir)
-    #         os.mkdir(args.file_dir)
-    #     else:
-    #         sys.exit('Exiting...')
+    if not os.path.isdir(args.file_dir):
+        os.mkdir(args.file_dir)
+    else:
+        inp = 'y'
+        # while inp not in ['y', 'n']:
+        #     inp = input(f'Directory {args.file_dir} already exists. Do you want to erase the existing files? (y/n)')
+        if inp.lower() == 'y':
+            print('Erasing...')
+            shutil.rmtree(args.file_dir)
+            os.mkdir(args.file_dir)
+        else:
+            sys.exit('Exiting...')
 
     #Adding units to arguments where relevant
     smbh_mass = args.m_smbh | units.Msun
@@ -175,7 +174,7 @@ if __name__ == '__main__':
         if not args.vary_radii: # Run gravity + hydro until the end without additional stopping condition
             print(f'DOING A SINGLE GRAVHYDRO RUN UNTIL T={time_end}')
             dir_current_run = args.file_dir + f'/snapshots-rmin{args.r_min}-rmax{args.r_max}/'
-            # os.mkdir(dir_current_run)
+            os.mkdir(dir_current_run)
             sim_time, grav_energy, times = runner.run_gravity_hydro_bridge_stopping_condition(dir_current_run, args.n_disk)
 
             # Save relevant data for later analysis

@@ -4,16 +4,23 @@ from main import orbital_period
 from amuse.io import read_set_from_file
 from amuse.units import units, nbody_system
 
-
 import os
+import argparse
 
 if __name__ == "__main__":
-    save_dir = 'home/s2562898/data1/AMUSE_CB_disk/...'
+    parser = argparse.ArgumentParser(description='Run a production simulation for the AMUSE circumbinary disk project.')
+    parser.add_argument('--save_dir', type=str, default='home/s2562898/data1/AMUSE_CB_disk/production_run',
+                        help='Directory to save simulation data.')
+    parser.add_argument('--initial_conditions', type=str, default='...',)
+    args = parser.parse_args()
+
+    save_dir = args.save_dir
+    initial_conditions_file = args.initial_conditions
 
     #check if there are files in save_dir
     files = os.listdir(save_dir)
     if len(files) == 0: # first run
-        initial_conditions = read_set_from_file('...')
+        initial_conditions = read_set_from_file(initial_conditions_file)
     else:
         # load the last file in the directory and use it as the initial conditions
         files.sort()
@@ -31,7 +38,7 @@ if __name__ == "__main__":
     hydro_timestep = 0.01 * binary_period
     bridge_timestep = 0.1 * binary_period
     diagnostic_timestep = 10 * binary_period
-    time_end = 2.7e6 #yr, D9 lifetime
+    time_end = 5e5 | units.yr
 
     # run the simulation
     runner = SimulationRunner(
