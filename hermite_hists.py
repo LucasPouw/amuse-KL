@@ -14,11 +14,14 @@ def bound(primary, disk_particle):
         return True
 
 if __name__ == "__main__":
-    run_paths = ['/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/t_end-100000.0-SLURM_time_limit-12.0',
-                 '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-7.26-r_max-12.03-t_end-100000.0-SLURM_time_limit-12.0',
-                 '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-7.59-r_max-10.99-t_end-100000.0-SLURM_time_limit-12.0',
-                 '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-8.03-r_max-11.11-t_end-100000.0-SLURM_time_limit-12.0']
+    # run_paths = ['/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/t_end-100000.0-SLURM_time_limit-12.0',
+    #              '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-7.26-r_max-12.03-t_end-100000.0-SLURM_time_limit-12.0',
+    #              '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-7.59-r_max-10.99-t_end-100000.0-SLURM_time_limit-12.0',
+    #              '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-8.03-r_max-11.11-t_end-100000.0-SLURM_time_limit-12.0']
     
+    run_paths = ['/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/t_end-300000.0-SLURM_time_limit-24.0',
+                 '/home/s2562898/data1/AMUSE_CB_disk/slurm/amuseKL-output/r_min-7.0-r_max-12.0-t_end-300000.0-SLURM_time_limit-18.0']
+
     save_path = '/home/s2562898/data1/AMUSE_CB_disk'
 
     all_times = []
@@ -93,5 +96,5 @@ if __name__ == "__main__":
     plt.title('Number of bound particles over time')
     plt.xscale('log')
 
-    plt.savefig(f'{save_path}/bound_particles.png')
-    plt.savefig(f'{save_path}/bound_particles.pdf')
+    plt.savefig(f'{save_path}/bound_particles_300kyr.png')
+    plt.savefig(f'{save_path}/bound_particles_300kyr.pdf')

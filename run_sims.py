@@ -303,29 +303,26 @@ class SimulationRunner():
         """
         #calculate the time limit for the simulation
         start_time = time.time()
-        end_time = start_time + SLURM_time_limit * 60 * 60 - 10*60 # Convert hours to seconds, leave 10 minutes
+        end_time = start_time + SLURM_time_limit * 60 * 60 - 10*60 # Convert hours to seconds, leave 10 minutes, for saving and stopping
         gravity, hydro, gravhydro, channel, bodies = self._initialize_codes()
 
         grav_energy = [] | units.J
         times = [] | units.yr
+        accreted_list = []
         
         initial_total_energy = gravity.get_total_energy()
         grav_energy.append(gravity.get_total_energy())
 
         model_time = 0 | units.Myr
         times.append(model_time)
+        accreted_list.append(0)
 
         accreted_count = 0
-
-        # write_set_to_file(bodies, save_folder + f'/snapshot_0.hdf5')  # Save initial conditions
 
         #controls the printing in the terminal, could be a function argument but hardcoded for laziness
         self.verbose_timestep = 100 * self.diagnostic_timestep
 
-        max_factor_lost = 2  # TODO: put this in the parser
         while (model_time < self.time_end): #add condition that num. of bound particles should not be halved
-            diag_start_time = time.time()
-
             model_time += self.diagnostic_timestep
                         
             gravhydro.evolve_model(model_time)
@@ -336,6 +333,7 @@ class SimulationRunner():
 
             accreted = self.smbh_and_orbiter.accrete(self.disk) # find which particles have been accreted
             accreted_count += len(accreted)
+            accreted_list.append(len(accreted))
 
             bodies.remove_particles(accreted)
             self.disk.synchronize_to(hydro.particles) #also remove them from particles in Fi
@@ -347,7 +345,7 @@ class SimulationRunner():
             if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
                 print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
                 print(f"Number of accreted particles: {accreted_count}")
-                print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
+                # print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
                 print()
 
                 write_set_to_file(bodies, save_folder + f'/snapshot_{int(model_time.value_in(units.day))}.hdf5')
@@ -363,7 +361,7 @@ class SimulationRunner():
         gravity.stop()
         hydro.stop()
 
-        return model_time, grav_energy, times
+        return model_time, grav_energy, times, accreted_list
 
 
     def run_gravity_no_disk(self, save_folder):
