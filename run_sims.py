@@ -277,7 +277,7 @@ class SimulationRunner():
         return N_bound, len(unbound_disk_particles), num_inner_unbound, num_outer_unbound
     
 
-    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, N_init, SLURM_time_limit=0):
+    def run_gravity_hydro_bridge_stopping_condition(self, save_folder, SLURM_time_limit=0):
         """
         Runs the gravity-hydro simulation until specified end-time or until an additional stopping condition is reached.
         The additional stopping condition is defined as that the code will stop as soon as at least half the particles of the disk
@@ -336,6 +336,17 @@ class SimulationRunner():
             accreted_list.append(len(accreted))
 
             bodies.remove_particles(accreted)
+
+            #remove particles that come too close to the SMBH to prevent numerical issues with very high velocities
+            #also remove particles that are too far away to prevent numerical issues with too large positions
+            too_close = bodies[bodies.position.lengths() < 5000 | units.AU]
+            delete_close = too_close[too_close.name == 'disk']
+            too_far = bodies[bodies.position.lengths() > 1 | units.pc]
+            delete_far = too_far[too_far.name == 'disk']
+            bodies.remove_particles(delete_close)
+            bodies.remove_particles(delete_far)
+
+            #synchronize the disk particles to remove them from the hydro particles
             self.disk.synchronize_to(hydro.particles) #also remove them from particles in Fi
 
             relative_dE = initial_total_energy / (gravity.get_total_energy()) - 1
@@ -345,6 +356,7 @@ class SimulationRunner():
             if not int(model_time.value_in(units.yr) % self.verbose_timestep.value_in(units.yr)):
                 print(f"Time: {model_time.value_in(units.yr):.2E} yr, Relative energy error dE={relative_dE:.3E}")
                 print(f"Number of accreted particles: {accreted_count}")
+                print(f"Number of disk particles: {sum(bodies.name == 'disk')}")
                 # print(f'Time taken for this timestep: {time.time() - diag_start_time:.2f} seconds')
                 print()
 

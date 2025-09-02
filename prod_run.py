@@ -24,18 +24,34 @@ if __name__ == "__main__":
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
         print(f"Created directory: {save_dir}")
-    else:
-        #check for existing snapshot folders
-        snapshot_folders = [f for f in os.listdir(save_dir) if os.path.isdir(os.path.join(save_dir, f)) and f.startswith('snapshots')]
-        if len(snapshot_folders) > 0:
-            #find the latest snapshot folder
-            snapshot_folders = sorted(snapshot_folders, key=lambda x: float(x.split('_')[1]))
-            latest_snapshot_folder = snapshot_folders[-1]
-            save_dir = os.path.join(save_dir, latest_snapshot_folder)
-            print(f"Found latest existing snapshot folder: {save_dir}, starting from there.")
+    #check for existing snapshot folders
+    snapshot_folders = [f for f in os.listdir(save_dir) if os.path.isdir(os.path.join(save_dir, f)) and f.startswith('snapshots')]
+    if len(snapshot_folders) > 0:
+        #find the latest snapshot folder
+        snapshot_folders = sorted(snapshot_folders, key=lambda x: float(x.split('_')[1]))
+        latest_snapshot_folder = snapshot_folders[-1]
+        save_dir = os.path.join(save_dir, latest_snapshot_folder)
+        print(f"Found latest existing snapshot folder: {save_dir}, starting from there.")
 
-            #find latest snapshot file in the latest snapshot folder
-            snapshot_files = os.listdir(save_dir)
+        #find latest snapshot file in the latest snapshot folder
+        snapshot_files = os.listdir(save_dir)
+        if len(snapshot_files) == 0:
+            #check if snapshot folder is snapshots_0
+            if latest_snapshot_folder == 'snapshots_0':
+                print("No snapshot files found in snapshots_0. Starting fresh.")
+                initial_conditions = read_set_from_file(initial_conditions_file)
+                save_folder = os.path.join(save_dir, 'snapshots_0')
+                os.mkdir(save_folder)
+                final_snapshot_time = 0 | units.yr
+            else:
+                print(f"No snapshot files found in {save_dir}. Switching to previous snapshot folder.")
+                latest_snapshot_folder = snapshot_folders[-2]
+                save_dir = os.path.join(save_dir, latest_snapshot_folder)
+                snapshot_files = os.listdir(save_dir)
+                if len(snapshot_files) == 0:
+                    raise FileNotFoundError(f"No snapshot files found in {save_dir}. Check directories!")
+        
+        else:
             snapshot_files = sorted(snapshot_files, key=lambda x: float(x.split('_')[1].split('.hdf5')[0]))
             latest_snapshot_file = snapshot_files[-1]
 
@@ -53,18 +69,18 @@ if __name__ == "__main__":
             save_folder = os.path.join(args.save_dir, f'snapshots_{final_snapshot_time.value_in(units.yr)}')
             os.mkdir(save_folder)
 
-        else:
-            #start from initial conditions file if no snapshot folders exist
-            print(f"No existing snapshot folders found in {save_dir}. Starting fresh.")
+    else:
+        #start from initial conditions file if no snapshot folders exist
+        print(f"No existing snapshot folders found in {save_dir}. Starting fresh.")
 
-            #load initial conditions from the provided file
-            initial_conditions = read_set_from_file(initial_conditions_file)
-            print(f"Using initial conditions from: {initial_conditions_file}")
+        #load initial conditions from the provided file
+        initial_conditions = read_set_from_file(initial_conditions_file)
+        print(f"Using initial conditions from: {initial_conditions_file}")
 
-            #create a new folder for the first run
-            save_folder = os.path.join(save_dir, 'snapshots_0')
-            os.mkdir(save_folder)
-            final_snapshot_time = 0 | units.yr
+        #create a new folder for the first run
+        save_folder = os.path.join(save_dir, 'snapshots_0')
+        os.mkdir(save_folder)
+        final_snapshot_time = 0 | units.yr
 
 
     print(f'Saving snapshots to: {save_folder}')
@@ -75,7 +91,7 @@ if __name__ == "__main__":
     disk = initial_conditions[initial_conditions.mass < 0.1 | units.MSun]
 
     #reinitialize sink particles
-    sink_rads = [18, 1.91, 0.68] | units.Rsun # SMBH, primary, secondary
+    sink_rads = [18, 1.91, 0.68] | units.Rsun # SMBH, primary, secondary from SeBa
     smbh_and_orbiter = new_sink_particles(smbh_and_orbiter, sink_radius=sink_rads)
 
     converter = nbody_system.nbody_to_si(3.53 | units.Msun, 44e-3 | units.parsec)
@@ -101,7 +117,7 @@ if __name__ == "__main__":
 
     #run simulation
     model_time, grav_energy, times, accreted = runner.run_gravity_hydro_bridge_stopping_condition(
-        save_folder=save_folder, N_init=int(1e5), SLURM_time_limit=168)
+        save_folder=save_folder, SLURM_time_limit=168)
     
     total_sim_time = model_time + final_snapshot_time
 
@@ -109,8 +125,8 @@ if __name__ == "__main__":
     np.save(os.path.join(save_dir, f'{float(total_sim_time.value_in(units.yr))}_times.npy'), times.value_in(units.yr))
     np.save(os.path.join(save_dir, f'{float(total_sim_time.value_in(units.yr))}_accreted.npy'), accreted)
 
-    print(f'Run completed. Time simulated this run: {model_time}')
-    print(f'Total time simulated: {total_sim_time}')
+    print(f'Run completed. Time simulated this run: {model_time.in_(units.yr)}')
+    print(f'Total time simulated: {total_sim_time.in_(units.yr)}')
 
     if model_time + final_snapshot_time >= time_end:
         print("-----------------------------------------------------------")

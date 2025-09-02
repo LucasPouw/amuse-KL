@@ -288,7 +288,34 @@ def plot_binary_disk_arrow(axes:mpl.axes.Axes, particle_set: Particles, lim: int
         axis.annotate("", xy=arrowhead, xytext=com_plot,
                       arrowprops=dict(arrowstyle="->"),xycoords='data',textcoords='data'
                       )
-  
+        
+def plot_binary_disk(axes:mpl.axes.Axes, particle_set: Particles, lim: int = 20) -> None:
+    """ Creates plot of the binary star system with hydrodynamical disk around it. Moreover, an arrow is pointing towards
+        the SMBH which is itself not plotted due to scaling reasons. The disk is colored based on the Euclidian coordinates of its 
+        particles.
+        Since this is in 3D space, plot 3 subplots of every 2D planar projection. 
+        Requires axes to be an array of shape (3,). Plots are centered on the primary.
+
+    Args:
+        ax (mpl.axes.Axes): Matplotlib axis to create figure on.
+        particle_set (Particles): Particle set of the entire system, i.e. the binary, SMBH and disk. 
+        lim (int, optional): Sets the xlim and ylim of the figure. Defaults to 20.
+    """
+
+    ax_xy, ax_yz, ax_xz = axes
+
+    particle_set.position -= particle_set[particle_set.name == 'primary_star'].position  # Center on primary
+
+    disk = particle_set[particle_set.name == 'disk']
+    sph_pos = (disk.position.value_in(units.AU) / lim) / 2 + 0.5  # Get rgb = xyz color on disk normalized on furthest bound particle
+    sph_pos[np.any(sph_pos > 1, axis=1)] = 0
+    sph_pos[np.any(sph_pos < 0, axis=1)] = 0
+
+    #Plot disk and stars
+    ax_xy.scatter(disk.x.value_in(units.AU), disk.y.value_in(units.AU), s=1, c=sph_pos)
+    ax_yz.scatter(disk.y.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
+    ax_xz.scatter(disk.x.value_in(units.AU), disk.z.value_in(units.AU), s=1, c=sph_pos)
+    plot_stars(axes, particle_set, lim)
 
 if __name__ == '__main__':
     # Initialize parser for the plotter functionality. 
