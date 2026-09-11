@@ -1,5 +1,9 @@
 # Disk stability and von Zeipel-Lidov-Kozai effect in AMUSE
 
+This repository is associated with the following paper:
+
+Badoux, Y., Pouw, L., van der Vuurst, T., & Portegies Zwart, S. (2026). *Kozai-driven mass loss of the circumbinary disk in D9 in orbit around the supermassive black hole Sgr A\**. **A&A, 710**, A234. [doi:10.1051/0004-6361/202558658](https://doi.org/10.1051/0004-6361/202558658) · [arXiv:2604.09856](https://arxiv.org/abs/2604.09856)
+
 Recently, the detection of an S-star binary around Sgr A* has been reported (Peissker et al., [2024](https://www.nature.com/articles/s41467-024-54748-3)). This system could have a circumbinary disk, which is suprising given the dynamic nature of the Galactic Center. The code in this repository can be used to test how long a disk can survive around a stellar binary that is orbiting a supermassive black hole (SMBH). Specifically, it allows the user to simulate a circumbinary disk. In such a system, the von Zeipel-Lidov-Kozai (vZLK) mechanism will have an effect on the binary and possibly on the disk, which can be investigated with this code as well. The simulation is implemented with a Bridged gravito-hydrodynamic code using the AMUSE suite. For more details on AMUSE, as well as installation requirements, we refer to [the AMUSE GitHub](https://github.com/spzwart/AMUSE), [the AMUSE book](https://iopscience.iop.org/book/mono/978-0-7503-1320-9) and the papers by Portegies Zwart et al. [(2009)](https://www.sciencedirect.com/science/article/abs/pii/S1384107608001085?via%3Dihub), Portegies Zwart et al. [(2013)](https://www.sciencedirect.com/science/article/abs/pii/S0010465512003116?via%3Dihub) and Pelupessy et al. [(2013)](https://www.aanda.org/articles/aa/full_html/2013/09/aa21252-13/aa21252-13.html).
 
 ## Contributors
